@@ -2,15 +2,16 @@
 
 namespace Database\Factories;
 
-
-use App\Models\Entrada;
+use App\Models\Estadistiques;
+use App\Models\Empresa;
 use App\Models\Evento;
+use App\Models\Plan;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Entrada>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Model>
  */
-class EntradaFactory extends Factory
+class EstadistiquesFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -18,6 +19,7 @@ class EntradaFactory extends Factory
      * @return array<string, mixed>
      */
     protected $model = Estadistiques::class;
+
 
     public function definition()
     {
