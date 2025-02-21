@@ -2,6 +2,9 @@
 
 namespace Database\Factories;
 
+
+use App\Models\Entrada;
+use App\Models\Evento;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
