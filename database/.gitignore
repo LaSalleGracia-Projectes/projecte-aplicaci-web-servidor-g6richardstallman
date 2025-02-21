@@ -1,1 +1,4 @@
 *.sqlite*
+.php-cs-fixer.php
+.env
+.vendor

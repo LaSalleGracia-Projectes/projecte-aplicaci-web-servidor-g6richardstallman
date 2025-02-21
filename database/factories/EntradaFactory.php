@@ -2,9 +2,10 @@
 
 namespace Database\Factories;
 
-
+use App\Models\Plan;
 use App\Models\Entrada;
 use App\Models\Evento;
+use App\Models\Empresa;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,17 +18,16 @@ class EntradaFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    protected $model = Estadistiques::class;
+    protected $model = Entrada::class;
 
     public function definition()
     {
         return [
-            'idEmpresa' => Empresa::inRandomOrder()->first()->idEmpresa,
-            'idEvento' => Evento::inRandomOrder()->first()->idEvento,
-            'visitesTotals' => $this->faker->numberBetween(0, 1000),
-            'entradesVendes' => $this->faker->numberBetween(0, 1000),
-            'tipusPlan' => Plan::inRandomOrder()->first()->idPlan,
-            'valoracioProm' => $this->faker->randomFloat(2, 0, 5)
+            'fechaVenta' => $this->faker->dateTimeThisYear,
+            'nombrePersona' => $this->faker->firstName,
+            'apellido1' => $this->faker->lastName,
+            'apellido2' => $this->faker->lastName,
+            'idEvento' => Evento::inRandomOrder()->first()->idEvento
         ];
     }
 }
