@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Estadistiques extends Model
 {
+    use HasFactory;
+    
     protected $table = 'estadistiques';
     protected $primaryKey = 'idEstadistiques';
     public $timestamps = false;
