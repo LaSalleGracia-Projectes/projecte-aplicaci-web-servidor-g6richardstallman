@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Evento extends Model
 {
+    use HasFactory;
+    
     protected $table = 'evento';
     protected $primaryKey = 'idEvento';
     public $timestamps = false;
