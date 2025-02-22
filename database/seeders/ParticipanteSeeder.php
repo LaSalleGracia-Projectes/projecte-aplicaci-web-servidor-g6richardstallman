@@ -3,12 +3,12 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Valoracion;
+use App\Models\Participante;
 
-class ValoracionSeeder extends Seeder
+class ParticipanteSeeder extends Seeder
 {
     public function run(): void
     {
-        Valoracion::factory(10)->create();
+        Participante::factory(10)->create();
     }
 }

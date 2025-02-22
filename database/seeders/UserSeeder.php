@@ -5,14 +5,13 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 
-class UsersSeeder extends Seeder
+class UserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
-    public function run()
+    public function run(): void
     {
-        // Crea 5 usuarios de prueba
-        User::factory(5)->create();
+        User::factory(10)->create();
     }
 }

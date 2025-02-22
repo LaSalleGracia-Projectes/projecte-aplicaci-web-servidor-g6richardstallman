@@ -4,31 +4,22 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class extends Migration {
     public function up()
-{
-    Schema::create('pago', function (Blueprint $table) {
-        $table->id('idPago');
-        $table->string('nombre');
-        $table->string('contacto')->nullable();
-        $table->string('telefono', 20)->nullable();
-        $table->string('email')->unique()->nullable();
-        $table->integer('tipoPlan')->nullable();
-        $table->foreign('tipoPlan')->references('idPlan')->on('plan')->onDelete('set null');
-    });
-}
+    {
+        Schema::create('pago', function (Blueprint $table) {
+            $table->bigIncrements('idPago'); 
+            $table->string('nombre');
+            $table->string('contacto');
+            $table->string('telefono');
+            $table->string('email')->unique();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+    } 
 
-
-    /**
-     * Reverse the migrations.
-     */
-    
-public function down()
-{
-    Schema::dropIfExists('pago');
-}
+    public function down()
+    {
+        Schema::dropIfExists('pago');
+    }
 };
