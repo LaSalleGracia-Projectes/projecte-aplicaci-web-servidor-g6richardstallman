@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             ValoracionSeeder::class,
             NewsletterSeeder::class,
             VisitaSeeder::class,
-            UsersSeeder::class,
+            UsersSeeder::class
         ]);
     }
 }
