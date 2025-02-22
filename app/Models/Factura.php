@@ -9,36 +9,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Factura extends Model
 {
     use HasFactory;
-    
-    protected $table = 'factura';
-    protected $primaryKey = 'idFactura';
-    public $timestamps = false;
+
+    protected $table = 'facturas';
+    protected $primaryKey = 'id';
+    public $timestamps = true;
 
     protected $fillable = [
-        'idCliente',
-        'montoTotal',
+        'monto_total',
         'descuento',
-        'impostos',
+        'impuestos',
         'subtotal',
-        'idEntrada',
-        'idPago'
+        'venta_entrada_id'
     ];
 
-    // Relación con Clients
-    public function cliente(): BelongsTo
+    // Relación con VentaEntrada
+    public function ventaEntrada(): BelongsTo
     {
-        return $this->belongsTo(Clients::class, 'idCliente');
-    }
-
-    // Relación con Entrada
-    public function entrada(): BelongsTo
-    {
-        return $this->belongsTo(Entrada::class, 'idEntrada');
-    }
-
-    // Relación con Pago
-    public function pago(): BelongsTo
-    {
-        return $this->belongsTo(Pago::class, 'idPago');
+        return $this->belongsTo(VentaEntrada::class, 'venta_entrada_id');
     }
 }

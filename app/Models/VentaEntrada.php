@@ -9,38 +9,31 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class VentaEntrada extends Model
 {
     use HasFactory;
-    
-    protected $table = 'ventaentrada';
-    protected $primaryKey = 'idVentaEntrada';
-    public $timestamps = false;
+
+    protected $table = 'venta_entradas';
+    protected $primaryKey = 'id';
+    public $timestamps = true;
 
     protected $fillable = [
-        'dniCliente',
-        'fechaCompra',
-        'estadoPago',
+        'estado_pago',
         'subtotal',
         'impuestos',
         'descuento',
-        'montoTotal',
-        'idEntrada',
-        'idPago'
+        'monto_total',
+        'entrada_id',
+        'pago_id',
+        'participante_id'
     ];
-
-    // Relación con Clients
-    public function cliente(): BelongsTo
-    {
-        return $this->belongsTo(Clients::class, 'dniCliente', 'dni');
-    }
 
     // Relación con Entrada
     public function entrada(): BelongsTo
     {
-        return $this->belongsTo(Entrada::class, 'idEntrada');
+        return $this->belongsTo(Entrada::class, 'entrada_id');
     }
 
     // Relación con Pago
     public function pago(): BelongsTo
     {
-        return $this->belongsTo(Pago::class, 'idPago');
+        return $this->belongsTo(Pago::class, 'pago_id');
     }
 }
