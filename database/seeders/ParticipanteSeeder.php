@@ -3,15 +3,15 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Factura;
+use App\Models\Participante;
 
-class FacturaSeeder extends Seeder
+class ParticipanteSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        Factura::factory(20)->create();
+        Participante::factory(10)->create();
     }
 }
