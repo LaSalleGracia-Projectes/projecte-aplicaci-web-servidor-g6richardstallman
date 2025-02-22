@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
- */
 class UserFactory extends Factory
 {
     protected $model = User::class;
@@ -19,7 +16,8 @@ class UserFactory extends Factory
         return [
             'name' => $this->faker->name,
             'email' => $this->faker->unique()->safeEmail,
-            'password' => Hash::make('password123'), // Contraseña predeterminada encriptada
+            'password' => Hash::make('password123'), // Contraseña predeterminada
+            'role' => $this->faker->randomElement(['organizador', 'participante']),
             'remember_token' => Str::random(10),
         ];
     }
