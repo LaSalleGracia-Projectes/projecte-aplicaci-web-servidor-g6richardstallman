@@ -4,15 +4,15 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        // Tabla de usuarios
         Schema::create('users', function (Blueprint $table) {
-            $table->id('idUser');
+            $table->bigIncrements('idUser'); // Aseguramos que sea BigInt
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
@@ -21,22 +21,25 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-        // Tabla para recuperar contraseñas
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->id();
-            $table->string('email')->index();
+            $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
-        // Tabla para gestionar sesiones
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
+            $table->unsignedBigInteger('user_id')->nullable()->index(); // Ajuste aquí
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
             $table->integer('last_activity')->index();
+
+            // Ajuste aquí: Foreign key que hace referencia a idUser
+            $table->foreign('user_id')
+                ->references('idUser')
+                ->on('users')
+                ->onDelete('cascade');
         });
     }
 
