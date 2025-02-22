@@ -9,27 +9,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Valoracion extends Model
 {
     use HasFactory;
-    
-    protected $table = 'valoracion';
-    protected $primaryKey = 'idValoracion';
-    public $timestamps = false;
+
+    protected $table = 'valoraciones';
+    protected $primaryKey = 'id';
+    public $timestamps = true;
 
     protected $fillable = [
-        'idCliente',
-        'idEvento',
         'puntuacion',
-        'comentario'
+        'comentario',
+        'evento_id',
+        'participante_id'
     ];
-
-    // Relación con Clients
-    public function cliente(): BelongsTo
-    {
-        return $this->belongsTo(Clients::class, 'idCliente');
-    }
-
-    // Relación con Evento
-    public function evento(): BelongsTo
-    {
-        return $this->belongsTo(Evento::class, 'idEvento');
-    }
 }
