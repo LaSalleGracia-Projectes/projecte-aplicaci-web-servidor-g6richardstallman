@@ -15,7 +15,7 @@ class ParticipanteFactory extends Factory
         return [
             'dni' => $this->faker->unique()->regexify('[0-9]{8}[A-Z]'),
             'telefono' => $this->faker->phoneNumber,
-            'user_id' => User::factory()->create(['role' => 'participante'])->id
+            'idUser' => User::factory()->create(['role' => 'participante'])->idUser
         ];
     }
 }

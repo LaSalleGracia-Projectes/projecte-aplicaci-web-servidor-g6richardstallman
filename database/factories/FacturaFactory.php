@@ -3,7 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Factura;
-use App\Models\VentaEntrada;
+use App\Models\Participante;
+use App\Models\Entrada;
+use App\Models\Pago;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class FacturaFactory extends Factory
@@ -13,16 +15,18 @@ class FacturaFactory extends Factory
     public function definition()
     {
         $subtotal = $this->faker->randomFloat(2, 50, 200);
-        $impuestos = $subtotal * 0.21;
+        $impostos = $subtotal * 0.21;
         $descuento = $this->faker->randomFloat(2, 0, $subtotal * 0.2);
-        $monto_total = $subtotal + $impuestos - $descuento;
+        $montoTotal = $subtotal + $impostos - $descuento;
 
         return [
-            'monto_total' => $monto_total,
+            'montoTotal' => $montoTotal,
             'descuento' => $descuento,
-            'impuestos' => $impuestos,
+            'impostos' => $impostos,
             'subtotal' => $subtotal,
-            'venta_entrada_id' => VentaEntrada::factory()
+            'idParticipante' => Participante::factory(),
+            'idEntrada' => Entrada::factory(),
+            'idPago' => Pago::factory()
         ];
     }
 }

@@ -12,26 +12,24 @@ class Evento extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'eventos';
-    protected $primaryKey = 'id';
+    protected $table = 'evento';
+    protected $primaryKey = 'idEvento';
     public $timestamps = true;
 
     protected $fillable = [
-        'nombre_evento',
-        'fecha_evento',
+        'nombreEvento',
+        'fechaEvento',
         'lugar',
-        'organizador_id'
+        'idOrganizador'
     ];
 
-    // Relación con Organizador
     public function organizador(): BelongsTo
     {
-        return $this->belongsTo(Organizador::class, 'organizador_id');
+        return $this->belongsTo(Organizador::class, 'idOrganizador', 'idOrganizador');
     }
 
-    // Relación con Entrada
     public function entradas(): HasMany
     {
-        return $this->hasMany(Entrada::class, 'evento_id');
+        return $this->hasMany(Entrada::class, 'idEvento', 'idEvento');
     }
 }

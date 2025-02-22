@@ -15,7 +15,7 @@ class EntradaFactory extends Factory
         return [
             'fecha_venta' => $this->faker->dateTimeBetween('-1 year', 'now'),
             'nombre_persona' => $this->faker->name,
-            'evento_id' => Evento::factory()
+            'idEvento' => Evento::factory()->create()->idEvento
         ];
     }
 }

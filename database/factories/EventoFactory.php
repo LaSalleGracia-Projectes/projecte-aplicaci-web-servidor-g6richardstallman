@@ -13,10 +13,10 @@ class EventoFactory extends Factory
     public function definition()
     {
         return [
-            'nombre_evento' => $this->faker->sentence(3),
-            'fecha_evento' => $this->faker->dateTimeBetween('now', '+1 year'),
+            'nombreEvento' => $this->faker->sentence(3),
+            'fechaEvento' => $this->faker->dateTimeBetween('now', '+1 year'),
             'lugar' => $this->faker->city,
-            'organizador_id' => Organizador::factory()
+            'idOrganizador' => Organizador::factory()->create()->idOrganizador
         ];
     }
 }

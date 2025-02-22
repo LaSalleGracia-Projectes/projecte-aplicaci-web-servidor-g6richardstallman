@@ -4,22 +4,26 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up()
+return new class extends Migration
+{
+    public function up(): void
     {
         Schema::create('organizador', function (Blueprint $table) {
-            $table->id('idOrganizador');
-            $table->string('nombreOrganizacion');
-            $table->string('telefonoContacto');
-            
-            $table->unsignedBigInteger('idUser');
-            $table->foreign('idUser')->references('idUser')->on('users')->onDelete('cascade');
-            
+            $table->bigIncrements('idOrganizador');
+            $table->string('nombre_organizacion');
+            $table->string('telefono_contacto');
+            $table->unsignedBigInteger('user_id')->unique();
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('user_id')
+                ->references('idUser')
+                ->on('users')
+                ->onDelete('cascade');
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('organizador');
     }
