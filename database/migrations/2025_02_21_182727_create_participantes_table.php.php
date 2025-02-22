@@ -11,10 +11,13 @@ return new class extends Migration {
             $table->id('idParticipante');
             $table->string('dni')->unique();
             $table->string('telefono');
-            
             $table->unsignedBigInteger('idUser');
-            $table->foreign('idUser')->references('idUser')->on('users')->onDelete('cascade');
             
+            $table->foreign('idUser')
+                ->references('idUser')
+                ->on('users')
+                ->onDelete('cascade');
+                
             $table->timestamps();
         });
     }

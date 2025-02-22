@@ -14,20 +14,20 @@ class VentaEntradaFactory extends Factory
 
     public function definition()
     {
-        $subtotal = $this->faker->randomFloat(2, 10, 100);
+        $subtotal = $this->faker->randomFloat(2, 20, 100);
         $impuestos = $subtotal * 0.21;
         $descuento = $this->faker->randomFloat(2, 0, $subtotal * 0.2);
-        $monto_total = $subtotal + $impuestos - $descuento;
+        $montoTotal = $subtotal + $impuestos - $descuento;
 
         return [
-            'estado_pago' => $this->faker->randomElement(['Pagado', 'Pendiente', 'Cancelado']),
+            'estado_pago' => $this->faker->randomElement(['Pagado', 'Pendiente']),
             'subtotal' => $subtotal,
             'impuestos' => $impuestos,
             'descuento' => $descuento,
-            'monto_total' => $monto_total,
-            'entrada_id' => Entrada::factory(),
-            'pago_id' => Pago::factory(),
-            'participante_id' => Participante::factory()
+            'monto_total' => $montoTotal,
+            'idEntrada' => Entrada::factory(),
+            'idPago' => Pago::factory(),
+            'idParticipante' => Participante::factory()
         ];
     }
 }

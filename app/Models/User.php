@@ -12,7 +12,9 @@ class User extends Authenticatable
     use HasFactory, Notifiable, SoftDeletes;
 
     protected $table = 'users';
-    protected $primaryKey = 'id';
+    protected $primaryKey = 'idUser'; 
+    public $incrementing = true; 
+    protected $keyType = 'int'; 
     public $timestamps = true;
 
     protected $fillable = [
@@ -30,12 +32,12 @@ class User extends Authenticatable
     // Relación con Organizador
     public function organizador()
     {
-        return $this->hasOne(Organizador::class, 'user_id');
+        return $this->hasOne(Organizador::class, 'user_id', 'idUser'); // Ajuste en la relación
     }
 
     // Relación con Participante
     public function participante()
     {
-        return $this->hasOne(Participante::class, 'user_id');
+        return $this->hasOne(Participante::class, 'user_id', 'idUser'); // Ajuste en la relación
     }
 }

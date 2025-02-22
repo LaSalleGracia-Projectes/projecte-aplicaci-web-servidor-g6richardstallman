@@ -7,11 +7,8 @@ use App\Models\Factura;
 
 class FacturaSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        Factura::factory(20)->create();
+        Factura::factory(10)->create();
     }
 }

@@ -10,14 +10,21 @@ return new class extends Migration {
         Schema::create('valoracion', function (Blueprint $table) {
             $table->id('idValoracion');
             $table->integer('puntuacion');
-            $table->text('comentario')->nullable();
-
+            $table->text('comentario');
+            
             $table->unsignedBigInteger('idEvento');
             $table->unsignedBigInteger('idParticipante');
-
-            $table->foreign('idEvento')->references('idEvento')->on('evento')->onDelete('cascade');
-            $table->foreign('idParticipante')->references('idParticipante')->on('participante')->onDelete('cascade');
             
+            $table->foreign('idEvento')
+                  ->references('idEvento')
+                  ->on('evento')
+                  ->onDelete('cascade');
+                  
+            $table->foreign('idParticipante')
+                  ->references('idParticipante')
+                  ->on('participante')
+                  ->onDelete('cascade');
+
             $table->timestamps();
         });
     }

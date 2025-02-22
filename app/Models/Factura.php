@@ -10,21 +10,32 @@ class Factura extends Model
 {
     use HasFactory;
 
-    protected $table = 'facturas';
-    protected $primaryKey = 'id';
+    protected $table = 'factura';
+    protected $primaryKey = 'idFactura';
     public $timestamps = true;
 
     protected $fillable = [
-        'monto_total',
+        'montoTotal',
         'descuento',
-        'impuestos',
+        'impostos',
         'subtotal',
-        'venta_entrada_id'
+        'idParticipante',
+        'idEntrada',
+        'idPago'
     ];
 
-    // Relación con VentaEntrada
-    public function ventaEntrada(): BelongsTo
+    public function participante(): BelongsTo
     {
-        return $this->belongsTo(VentaEntrada::class, 'venta_entrada_id');
+        return $this->belongsTo(Participante::class, 'idParticipante');
+    }
+
+    public function entrada(): BelongsTo
+    {
+        return $this->belongsTo(Entrada::class, 'idEntrada');
+    }
+
+    public function pago(): BelongsTo
+    {
+        return $this->belongsTo(Pago::class, 'idPago');
     }
 }

@@ -10,8 +10,8 @@ class VentaEntrada extends Model
 {
     use HasFactory;
 
-    protected $table = 'venta_entradas';
-    protected $primaryKey = 'id';
+    protected $table = 'venta_entrada';
+    protected $primaryKey = 'idVentaEntrada';
     public $timestamps = true;
 
     protected $fillable = [
@@ -20,20 +20,23 @@ class VentaEntrada extends Model
         'impuestos',
         'descuento',
         'monto_total',
-        'entrada_id',
-        'pago_id',
-        'participante_id'
+        'idEntrada',
+        'idPago',
+        'idParticipante'
     ];
 
-    // Relación con Entrada
     public function entrada(): BelongsTo
     {
-        return $this->belongsTo(Entrada::class, 'entrada_id');
+        return $this->belongsTo(Entrada::class, 'idEntrada');
     }
 
-    // Relación con Pago
     public function pago(): BelongsTo
     {
-        return $this->belongsTo(Pago::class, 'pago_id');
+        return $this->belongsTo(Pago::class, 'idPago');
+    }
+
+    public function participante(): BelongsTo
+    {
+        return $this->belongsTo(Participante::class, 'idParticipante');
     }
 }

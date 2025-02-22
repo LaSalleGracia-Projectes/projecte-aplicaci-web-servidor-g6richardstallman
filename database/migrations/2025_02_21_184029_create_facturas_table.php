@@ -19,9 +19,20 @@ return new class extends Migration {
             $table->unsignedBigInteger('idEntrada');
             $table->unsignedBigInteger('idPago');
             
-            $table->foreign('idParticipante')->references('idParticipante')->on('participante')->onDelete('cascade');
-            $table->foreign('idEntrada')->references('idEntrada')->on('entrada')->onDelete('cascade');
-            $table->foreign('idPago')->references('idPago')->on('pago')->onDelete('cascade');
+            $table->foreign('idParticipante')
+                  ->references('idParticipante')
+                  ->on('participante')
+                  ->onDelete('cascade');
+
+            $table->foreign('idEntrada')
+                  ->references('idEntrada')
+                  ->on('entrada')
+                  ->onDelete('cascade');
+
+            $table->foreign('idPago')
+                  ->references('idPago')
+                  ->on('pago')
+                  ->onDelete('cascade');
 
             $table->timestamps();
         });

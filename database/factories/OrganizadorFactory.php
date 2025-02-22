@@ -15,7 +15,7 @@ class OrganizadorFactory extends Factory
         return [
             'nombre_organizacion' => $this->faker->company,
             'telefono_contacto' => $this->faker->phoneNumber,
-            'user_id' => User::factory()->create(['role' => 'organizador'])->id
+            'user_id' => User::factory()->create()->idUser
         ];
     }
 }

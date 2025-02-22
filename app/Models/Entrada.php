@@ -3,22 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+
 class Entrada extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    protected $table = 'entradas';
-    protected $primaryKey = 'id';
+    protected $table = 'entrada';
+    protected $primaryKey = 'idEntrada';
     public $timestamps = true;
 
     protected $fillable = [
         'fecha_venta',
         'nombre_persona',
-        'evento_id'
+        'idEvento'
     ];
 
     // Relación con Evento

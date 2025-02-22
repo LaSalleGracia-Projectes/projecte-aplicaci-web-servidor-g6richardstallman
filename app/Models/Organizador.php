@@ -12,8 +12,8 @@ class Organizador extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'organizadores';
-    protected $primaryKey = 'id';
+    protected $table = 'organizador';
+    protected $primaryKey = 'idOrganizador';
     public $timestamps = true;
 
     protected $fillable = [
@@ -22,15 +22,13 @@ class Organizador extends Model
         'user_id'
     ];
 
-    // Relación con User
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id', 'idUser');
     }
 
-    // Relación con Evento
     public function eventos(): HasMany
     {
-        return $this->hasMany(Evento::class, 'organizador_id');
+        return $this->hasMany(Evento::class, 'organizador_id', 'idOrganizador');
     }
 }

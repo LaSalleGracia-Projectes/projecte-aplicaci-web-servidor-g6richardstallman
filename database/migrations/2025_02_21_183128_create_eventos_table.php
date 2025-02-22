@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    public function up()
+    public function up(): void
     {
         Schema::create('evento', function (Blueprint $table) {
             $table->id('idEvento');
@@ -17,10 +17,11 @@ return new class extends Migration {
             $table->foreign('idOrganizador')->references('idOrganizador')->on('organizador')->onDelete('cascade');
             
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('evento');
     }

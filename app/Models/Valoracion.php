@@ -10,14 +10,24 @@ class Valoracion extends Model
 {
     use HasFactory;
 
-    protected $table = 'valoraciones';
-    protected $primaryKey = 'id';
+    protected $table = 'valoracion';
+    protected $primaryKey = 'idValoracion';
     public $timestamps = true;
 
     protected $fillable = [
         'puntuacion',
         'comentario',
-        'evento_id',
-        'participante_id'
+        'idEvento',
+        'idParticipante'
     ];
+
+    public function evento(): BelongsTo
+    {
+        return $this->belongsTo(Evento::class, 'idEvento');
+    }
+
+    public function participante(): BelongsTo
+    {
+        return $this->belongsTo(Participante::class, 'idParticipante');
+    }
 }

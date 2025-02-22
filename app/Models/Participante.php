@@ -11,31 +11,28 @@ class Participante extends Model
 {
     use HasFactory;
 
-    protected $table = 'participantes';
-    protected $primaryKey = 'id';
+    protected $table = 'participante';
+    protected $primaryKey = 'idParticipante';
     public $timestamps = true;
 
     protected $fillable = [
         'dni',
         'telefono',
-        'user_id'
+        'idUser'
     ];
 
-    // Relación con User
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'idUser', 'idUser');
     }
 
-    // Relación con VentaEntrada
     public function ventaEntradas(): HasMany
     {
-        return $this->hasMany(VentaEntrada::class, 'participante_id');
+        return $this->hasMany(VentaEntrada::class, 'participante_id', 'idParticipante');
     }
 
-    // Relación con Valoracion
     public function valoraciones(): HasMany
     {
-        return $this->hasMany(Valoracion::class, 'participante_id');
+        return $this->hasMany(Valoracion::class, 'participante_id', 'idParticipante');
     }
 }

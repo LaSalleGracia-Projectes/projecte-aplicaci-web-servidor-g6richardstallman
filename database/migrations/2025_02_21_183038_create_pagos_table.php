@@ -8,14 +8,15 @@ return new class extends Migration {
     public function up()
     {
         Schema::create('pago', function (Blueprint $table) {
-            $table->id('idPago');
+            $table->bigIncrements('idPago'); 
             $table->string('nombre');
-            $table->string('contacto')->nullable();
-            $table->string('telefono', 20)->nullable();
-            $table->string('email')->unique()->nullable();
+            $table->string('contacto');
+            $table->string('telefono');
+            $table->string('email')->unique();
             $table->timestamps();
+            $table->softDeletes();
         });
-    }
+    } 
 
     public function down()
     {

@@ -7,11 +7,8 @@ use App\Models\Valoracion;
 
 class ValoracionSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        Valoracion::factory(15)->create();
+        Valoracion::factory(10)->create();
     }
 }
