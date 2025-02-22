@@ -3,28 +3,20 @@
 namespace Database\Factories;
 
 use App\Models\Evento;
-use App\Models\Empresa;
+use App\Models\Organizador;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Evento>
- */
 class EventoFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     protected $model = Evento::class;
 
-public function definition()
+    public function definition()
     {
         return [
-            'idEmpresa' => Empresa::inRandomOrder()->first()->idEmpresa,
-            'nombreEvento' => $this->faker->sentence(3),
-            'fechaEvento' => $this->faker->dateTimeBetween('now', '+1 year'),
-            'lugar' => $this->faker->address
+            'nombre_evento' => $this->faker->sentence(3),
+            'fecha_evento' => $this->faker->dateTimeBetween('now', '+1 year'),
+            'lugar' => $this->faker->city,
+            'organizador_id' => Organizador::factory()
         ];
     }
 }
