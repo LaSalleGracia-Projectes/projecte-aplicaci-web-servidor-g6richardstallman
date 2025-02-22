@@ -6,31 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Evento extends Model
 {
-    use HasFactory;
-    
+    use HasFactory, SoftDeletes;
+
     protected $table = 'evento';
     protected $primaryKey = 'idEvento';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
-        'idEmpresa',
         'nombreEvento',
         'fechaEvento',
-        'lugar'
+        'lugar',
+        'idOrganizador'
     ];
 
-    // Relación con Empresa
-    public function empresa(): BelongsTo
+    public function organizador(): BelongsTo
     {
-        return $this->belongsTo(Empresa::class, 'idEmpresa');
+        return $this->belongsTo(Organizador::class, 'idOrganizador', 'idOrganizador');
     }
 
-    // Relación con Entrada
     public function entradas(): HasMany
     {
-        return $this->hasMany(Entrada::class, 'idEvento');
+        return $this->hasMany(Entrada::class, 'idEvento', 'idEvento');
     }
 }

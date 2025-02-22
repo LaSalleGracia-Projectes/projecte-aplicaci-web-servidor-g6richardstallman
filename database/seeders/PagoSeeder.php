@@ -7,7 +7,10 @@ use App\Models\Pago;
 
 class PagoSeeder extends Seeder
 {
-    public function run()
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
     {
         Pago::factory(20)->create();
     }

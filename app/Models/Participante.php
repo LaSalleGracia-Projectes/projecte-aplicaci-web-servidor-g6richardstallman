@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Participante extends Model
+{
+    use HasFactory;
+
+    protected $table = 'participante';
+    protected $primaryKey = 'idParticipante';
+    public $timestamps = true;
+
+    protected $fillable = [
+        'dni',
+        'telefono',
+        'idUser'
+    ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'idUser', 'idUser');
+    }
+
+    public function ventaEntradas(): HasMany
+    {
+        return $this->hasMany(VentaEntrada::class, 'participante_id', 'idParticipante');
+    }
+
+    public function valoraciones(): HasMany
+    {
+        return $this->hasMany(Valoracion::class, 'participante_id', 'idParticipante');
+    }
+}

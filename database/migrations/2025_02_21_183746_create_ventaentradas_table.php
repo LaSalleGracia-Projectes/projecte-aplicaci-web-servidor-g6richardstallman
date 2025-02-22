@@ -4,37 +4,43 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class extends Migration {
     public function up()
     {
-        Schema::create('ventaentrada', function (Blueprint $table) {
+        Schema::create('venta_entrada', function (Blueprint $table) {
             $table->id('idVentaEntrada');
-            $table->string('dniCliente', 20);
-            $table->date('fechaCompra');
-            $table->enum('estadoPago', ['Pagat', 'Pendent', 'Cancel·lat'])->default('Pendent');
-            $table->decimal('subtotal', 10, 2)->nullable();
-            $table->decimal('impuestos', 10, 2)->nullable();
+            $table->enum('estado_pago', ['Pagado', 'Pendiente'])->default('Pendiente');
+            $table->decimal('subtotal', 10, 2);
+            $table->decimal('impuestos', 10, 2);
             $table->decimal('descuento', 10, 2)->nullable();
-            $table->decimal('montoTotal', 10, 2);
+            $table->decimal('monto_total', 10, 2);
+
+            // Foreign Keys
             $table->unsignedBigInteger('idEntrada');
             $table->unsignedBigInteger('idPago');
-            
-            $table->foreign('dniCliente')->references('dni')->on('clients')->onDelete('cascade');
-            $table->foreign('idEntrada')->references('idEntrada')->on('entrada')->onDelete('cascade');
-            $table->foreign('idPago')->references('idPago')->on('pago')->onDelete('cascade');
+            $table->unsignedBigInteger('idParticipante');
+
+            $table->foreign('idEntrada')
+                ->references('idEntrada')
+                ->on('entrada')
+                ->onDelete('cascade');
+
+            $table->foreign('idPago')
+                ->references('idPago')
+                ->on('pago')
+                ->onDelete('cascade');
+
+            $table->foreign('idParticipante')
+                ->references('idParticipante')
+                ->on('participante')
+                ->onDelete('cascade');
+
+            $table->timestamps();
         });
     }
 
-
-    /**
-     * Reverse the migrations.
-     */
     public function down()
     {
-        Schema::dropIfExists('ventaentrada');
+        Schema::dropIfExists('venta_entrada');
     }
 };
