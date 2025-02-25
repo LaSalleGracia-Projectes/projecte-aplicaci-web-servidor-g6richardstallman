@@ -13,6 +13,8 @@ class Participante extends Model
 
     protected $table = 'participante';
     protected $primaryKey = 'idParticipante';
+    public $incrementing = true; 
+    protected $keyType = 'int'; 
     public $timestamps = true;
 
     protected $fillable = [
@@ -21,16 +23,19 @@ class Participante extends Model
         'idUser'
     ];
 
+    // Relación con User
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'idUser', 'idUser');
     }
 
+    // Relación con VentaEntrada
     public function ventaEntradas(): HasMany
     {
         return $this->hasMany(VentaEntrada::class, 'participante_id', 'idParticipante');
     }
 
+    // Relación con Valoracion
     public function valoraciones(): HasMany
     {
         return $this->hasMany(Valoracion::class, 'participante_id', 'idParticipante');
