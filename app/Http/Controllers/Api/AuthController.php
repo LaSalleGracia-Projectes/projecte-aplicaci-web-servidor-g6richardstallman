@@ -62,4 +62,38 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function login(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
+
+        try {
+            // Intentar autenticar al usuario
+            if (!auth()->attempt($validated)) {
+                return response()->json([
+                    'error' => 'Credenciales incorrectas'
+                ], 401);
+            }
+
+            $user = auth()->user();
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Login exitoso',
+                'user' => $user,
+                'access_token' => $token,
+                'token_type' => 'Bearer'
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error en el login: '.$e->getMessage());
+            return response()->json([
+                'error' => 'Error en el inicio de sesión',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 
