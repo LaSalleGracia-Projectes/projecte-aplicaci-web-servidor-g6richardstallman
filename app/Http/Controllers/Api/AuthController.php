@@ -65,13 +65,20 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        // Verificar si hay un token activo en el header
+        if ($request->bearerToken()) {
+            return response()->json([
+                'error' => 'Ya existe una sesión activa',
+                'message' => 'Debe cerrar la sesión actual antes de iniciar una nueva'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
 
         try {
-            // Intentar autenticar al usuario
             if (!auth()->attempt($validated)) {
                 return response()->json([
                     'error' => 'Credenciales incorrectas'
@@ -92,6 +99,25 @@ class AuthController extends Controller
             Log::error('Error en el login: '.$e->getMessage());
             return response()->json([
                 'error' => 'Error en el inicio de sesión',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function logout(Request $request)
+    {
+        try {
+            // Revoca el token actual
+            $request->user()->currentAccessToken()->delete();
+            
+            return response()->json([
+                'message' => 'Sesión cerrada correctamente'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('Error en el logout: '.$e->getMessage());
+            return response()->json([
+                'error' => 'Error al cerrar sesión',
                 'message' => $e->getMessage()
             ], 500);
         }
