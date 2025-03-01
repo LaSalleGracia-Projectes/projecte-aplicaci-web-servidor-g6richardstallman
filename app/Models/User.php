@@ -18,7 +18,9 @@ class User extends Authenticatable
     public $timestamps = true;
 
     protected $fillable = [
-        'name',
+        'nombre',
+        'apellido1',
+        'apellido2',
         'email',
         'password',
         'role'
@@ -32,12 +34,12 @@ class User extends Authenticatable
     // Relación con Organizador
     public function organizador()
     {
-        return $this->hasOne(Organizador::class, 'user_id', 'idUser'); // Ajuste en la relación
+        return $this->hasOne(Organizador::class, 'user_id', 'idUser');
     }
-
+    
     // Relación con Participante
     public function participante()
     {
-        return $this->hasOne(Participante::class, 'user_id', 'idUser'); // Ajuste en la relación
+        return $this->hasOne(Participante::class, 'idUser', 'idUser');
     }
 }
