@@ -11,16 +11,26 @@ return new class extends Migration {
             $table->id('idEvento');
             $table->string('nombreEvento');
             $table->date('fechaEvento');
+            $table->text('descripcion');
+            $table->time('hora');
+            $table->string('ubicacion');
+            $table->string('imagen')->nullable();
+            $table->string('categoria');
             $table->string('lugar');
-            
             $table->unsignedBigInteger('idOrganizador');
-            $table->foreign('idOrganizador')->references('idOrganizador')->on('organizador')->onDelete('cascade');
-            
             $table->timestamps();
             $table->softDeletes();
+
+            $table->foreign('idOrganizador')
+                  ->references('idOrganizador')
+                  ->on('organizador')
+                  ->onDelete('cascade');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('evento');
