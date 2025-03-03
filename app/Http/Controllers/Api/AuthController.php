@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -54,6 +55,11 @@ class AuthController extends Controller
                 'role' => $validated['role']
             ]);
 
+            // Crear token y guardarlo en remember_token
+            $token = $user->createToken('auth_token')->plainTextToken;
+            $user->remember_token = $token;
+            $user->save();
+
             if ($validated['role'] === 'organizador') {
                 Organizador::create([
                     'nombre_organizacion' => $validated['nombre_organizacion'],
@@ -70,7 +76,9 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'Usuario registrado correctamente',
-                'user' => $user
+                'user' => $user,
+                'access_token' => $token,
+                'token_type' => 'Bearer'
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -167,6 +175,72 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'No hay sesión activa'
             ], 200);
+        }
+    }
+    
+    public function resetPassword(Request $request)
+    {
+        try {
+            // Validar los datos de entrada
+            $validated = $request->validate([
+                'email' => 'required|email',
+                'identificador' => 'required|string' // Puede ser DNI o teléfono de contacto
+            ]);
+
+            // Buscar el usuario por email
+            $user = User::where('email', $validated['email'])->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'No se encontró ningún usuario con ese correo electrónico'
+                ], 404);
+            }
+
+            $identificadorValido = false;
+
+            // Verificar según el rol del usuario
+            if ($user->role === 'participante') {
+                // Para participantes, verificamos el DNI
+                $participante = Participante::where('idUser', $user->idUser)
+                                          ->where('dni', $validated['identificador'])
+                                          ->first();
+                
+                $identificadorValido = ($participante !== null);
+            } 
+            elseif ($user->role === 'organizador') {
+                // Para organizadores, verificamos el teléfono de contacto
+                $organizador = Organizador::where('user_id', $user->idUser)
+                                        ->where('telefono_contacto', $validated['identificador'])
+                                        ->first();
+                
+                $identificadorValido = ($organizador !== null);
+            }
+
+            if (!$identificadorValido) {
+                return response()->json([
+                    'message' => 'El identificador proporcionado no coincide con el usuario'
+                ], 400);
+            }
+
+            // Generar una nueva contraseña aleatoria
+            $newPassword = Str::random(10);
+            
+            // Actualizar la contraseña del usuario
+            $user->password = Hash::make($newPassword);
+            $user->save();
+
+            // Devolver la nueva contraseña
+            return response()->json([
+                'message' => 'Contraseña restablecida con éxito',
+                'password' => $newPassword
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error en resetPassword: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al restablecer la contraseña',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 } 

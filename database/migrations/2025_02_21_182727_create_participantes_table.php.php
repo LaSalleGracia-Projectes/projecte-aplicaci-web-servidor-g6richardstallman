@@ -13,13 +13,13 @@ return new class extends Migration {
             $table->string('telefono');
             $table->unsignedBigInteger('idUser');
             $table->timestamps();
-            $table->softDeletes();
 
             // Relación con cascada
             $table->foreign('idUser')
                   ->references('idUser')
                   ->on('users')
-                  ->onDelete('cascade');
+                  ->onDelete('cascade')
+                  ->onUpdate('cascade');
         });
     }
 
@@ -27,4 +27,4 @@ return new class extends Migration {
     {
         Schema::dropIfExists('participante');
     }
-}
+};
