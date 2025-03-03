@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateOrganizadorTable extends Migration
+return new class extends Migration
 {
     public function up()
     {
@@ -14,7 +14,6 @@ class CreateOrganizadorTable extends Migration
             $table->string('telefono_contacto');
             $table->unsignedBigInteger('user_id');
             $table->timestamps();
-            $table->softDeletes();
 
             // Relación con cascada
             $table->foreign('user_id')
@@ -28,4 +27,4 @@ class CreateOrganizadorTable extends Migration
     {
         Schema::dropIfExists('organizador');
     }
-}
+};
