@@ -20,7 +20,8 @@ class DatabaseSeeder extends Seeder
             FacturaSeeder::class,
             PagoSeeder::class,
             ValoracionSeeder::class,
-            VentaEntradaSeeder::class
+            VentaEntradaSeeder::class,
+            FavoritoSeeder::class
         ]);
     }
 }

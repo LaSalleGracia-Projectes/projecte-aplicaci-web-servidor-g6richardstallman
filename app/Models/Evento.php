@@ -37,4 +37,16 @@ class Evento extends Model
     {
         return $this->hasMany(Entrada::class, 'idEvento', 'idEvento');
     }
+
+    // Nueva relación para favoritos
+    public function favoritos(): HasMany
+    {
+        return $this->hasMany(Favorito::class, 'idEvento', 'idEvento');
+    }
+    
+    // Método para verificar si un evento es favorito de un participante
+    public function esFavoritoDe($idParticipante): bool
+    {
+        return $this->favoritos()->where('idParticipante', $idParticipante)->exists();
+    }
 }
