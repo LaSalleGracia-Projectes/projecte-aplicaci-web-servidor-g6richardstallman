@@ -20,7 +20,8 @@ class Participante extends Model
     protected $fillable = [
         'dni',
         'telefono',
-        'idUser'
+        'idUser',
+        'direccion'
     ];
 
     public function user(): BelongsTo
@@ -36,5 +37,17 @@ class Participante extends Model
     public function valoraciones(): HasMany
     {
         return $this->hasMany(Valoracion::class, 'idParticipante', 'idParticipante');
+    }
+
+    // Nueva relación para favoritos
+    public function favoritos(): HasMany
+    {
+        return $this->hasMany(Favorito::class, 'idParticipante', 'idParticipante');
+    }
+    
+    // Método para obtener todos los eventos favoritos de un participante
+    public function eventosFavoritos()
+    {
+        return Evento::whereIn('idEvento', $this->favoritos()->pluck('idEvento'));
     }
 }
