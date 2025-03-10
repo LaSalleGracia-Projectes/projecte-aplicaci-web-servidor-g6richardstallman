@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Evento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Participante;
 
 class EventoController extends Controller
 {
@@ -95,6 +97,16 @@ class EventoController extends Controller
                 ], 404);
             }
 
+            // Verificar si el evento es favorito del usuario actual
+            $isFavorito = false;
+            if (Auth::check()) {
+                $user = Auth::user();
+                $participante = Participante::where('idUser', $user->idUser)->first();
+                if ($participante) {
+                    $isFavorito = $evento->esFavoritoDe($participante->idParticipante);
+                }
+            }
+
             // Transformar los datos para la respuesta
             $eventoData = [
                 'id' => $evento->idEvento,
@@ -106,6 +118,7 @@ class EventoController extends Controller
                 'imagen' => $evento->imagen,
                 'categoria' => $evento->categoria,
                 'lugar' => $evento->lugar,
+                'isFavorito' => $isFavorito,
                 'organizador' => [
                     'id' => $evento->organizador->idOrganizador,
                     'nombre_organizacion' => $evento->organizador->nombre_organizacion,
