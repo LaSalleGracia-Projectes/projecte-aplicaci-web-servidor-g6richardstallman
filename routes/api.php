@@ -33,4 +33,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/eventos', [EventoController::class, 'createEvento']);
     Route::delete('/eventos/{id}', [EventoController::class, 'deleteEvento']);
     Route::put('/eventos/{id}', [EventoController::class, 'updateEvento']);
+    Route::get('/mis-eventos', [EventoController::class, 'getMisEventos']);
 });

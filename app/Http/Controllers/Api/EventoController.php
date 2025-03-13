@@ -363,4 +363,67 @@ class EventoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Obtiene todos los eventos creados por el organizador autenticado
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getMisEventos(Request $request)
+    {
+        try {
+            // Verificar si el usuario está autenticado
+            if (!$request->user()) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Debes iniciar sesión para ver tus eventos',
+                    'status' => 'error'
+                ], 401);
+            }
+
+            // Verificar si el usuario es un organizador
+            if ($request->user()->role !== 'organizador') {
+                return response()->json([
+                    'error' => 'Acceso denegado',
+                    'message' => 'Solo los organizadores pueden acceder a esta funcionalidad',
+                    'status' => 'error'
+                ], 403);
+            }
+
+            // Obtener el idOrganizador
+            $organizador = \App\Models\Organizador::where('idUser', $request->user()->idUser)->first();
+            
+            if (!$organizador) {
+                Log::error('Organizador no encontrado para el usuario ID: ' . $request->user()->idUser);
+                return response()->json([
+                    'error' => 'Organizador no encontrado',
+                    'message' => 'No se encontró el perfil de organizador asociado a tu cuenta',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            // Obtener todos los eventos del organizador
+            $eventos = \App\Models\Evento::where('idOrganizador', $organizador->idOrganizador)
+                ->with(['categoria', 'ubicacion']) // Incluir relaciones si son necesarias
+                ->get();
+
+            return response()->json([
+                'message' => 'Eventos obtenidos correctamente',
+                'eventos' => $eventos,
+                'total' => count($eventos),
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener eventos del organizador: ' . $e->getMessage());
+            
+            return response()->json([
+                'error' => 'Error al obtener eventos',
+                'message' => 'No se pudieron obtener tus eventos',
+                'debug' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
 } 
