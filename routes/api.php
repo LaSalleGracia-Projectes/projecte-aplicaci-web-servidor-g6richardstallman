@@ -23,6 +23,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Ruta para eliminar un evento
     Route::delete('/eventos/{id}', [EventoController::class, 'deleteEvento']);
+
+    // Ruta para actualizar un evento
+    Route::put('/eventos/{id}', [EventoController::class, 'updateEvento']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);
