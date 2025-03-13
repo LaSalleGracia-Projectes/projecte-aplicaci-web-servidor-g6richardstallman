@@ -92,6 +92,9 @@ class FavoritoController extends Controller
     public function addFavorito(Request $request)
     {
         try {
+            Log::info('Iniciando añadir favorito');
+            Log::info('Request data:', $request->all());
+            
             // Validar la solicitud
             $request->validate([
                 'idEvento' => 'required|exists:evento,idEvento'
@@ -99,10 +102,13 @@ class FavoritoController extends Controller
             
             // Obtener el usuario autenticado
             $user = Auth::user();
+            Log::info('Usuario autenticado:', ['id' => $user->idUser, 'email' => $user->email, 'role' => $user->role]);
             
             if (!$user) {
                 return response()->json([
-                    'message' => 'Usuario no autenticado'
+                    'error' => 'No autorizado',
+                    'message' => 'Usuario no autenticado',
+                    'status' => 'error'
                 ], 401);
             }
             
@@ -110,40 +116,58 @@ class FavoritoController extends Controller
             $participante = Participante::where('idUser', $user->idUser)->first();
             
             if (!$participante) {
+                Log::warning('Usuario no es participante', ['user_id' => $user->idUser, 'role' => $user->role]);
                 return response()->json([
-                    'message' => 'Solo los participantes pueden añadir eventos a favoritos'
+                    'error' => 'Acceso denegado',
+                    'message' => 'Solo los participantes pueden añadir eventos a favoritos',
+                    'status' => 'error'
                 ], 403);
             }
             
+            Log::info('Participante encontrado', ['participante_id' => $participante->idParticipante]);
+            
             // Verificar si el evento ya está en favoritos
             $existeFavorito = Favorito::where('idParticipante', $participante->idParticipante)
-                                     ->where('idEvento', $request->idEvento)
-                                     ->exists();
+                                    ->where('idEvento', $request->idEvento)
+                                    ->exists();
             
             if ($existeFavorito) {
                 return response()->json([
-                    'message' => 'Este evento ya está en tus favoritos'
-                ], 400);
+                    'message' => 'Este evento ya está en tus favoritos',
+                    'status' => 'info'
+                ], 200);
             }
             
             // Crear el nuevo favorito
-            $favorito = Favorito::create([
-                'idParticipante' => $participante->idParticipante,
-                'idEvento' => $request->idEvento,
-                'fechaAgregado' => now()
-            ]);
+            $favorito = new Favorito();
+            $favorito->idParticipante = $participante->idParticipante;
+            $favorito->idEvento = $request->idEvento;
+            $favorito->fechaAgregado = now();
+            $favorito->save();
+            
+            Log::info('Favorito creado exitosamente', ['favorito_id' => $favorito->id]);
             
             return response()->json([
                 'message' => 'Evento añadido a favoritos con éxito',
-                'favorito' => $favorito
+                'favorito' => $favorito,
+                'status' => 'success'
             ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error de validación al añadir favorito', ['errors' => $e->errors()]);
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors(),
+                'status' => 'error'
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Error al añadir favorito: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
-                'message' => 'Error al añadir el evento a favoritos',
-                'error' => $e->getMessage()
+                'error' => 'Error interno',
+                'message' => 'No se pudo añadir el evento a favoritos. Por favor, inténtelo de nuevo.',
+                'debug' => $e->getMessage(),
+                'status' => 'error'
             ], 500);
         }
     }
@@ -157,12 +181,17 @@ class FavoritoController extends Controller
     public function removeFavorito($idEvento)
     {
         try {
+            Log::info('Iniciando eliminar favorito', ['idEvento' => $idEvento]);
+            
             // Obtener el usuario autenticado
             $user = Auth::user();
+            Log::info('Usuario autenticado:', ['id' => $user->idUser, 'email' => $user->email, 'role' => $user->role]);
             
             if (!$user) {
                 return response()->json([
-                    'message' => 'Usuario no autenticado'
+                    'error' => 'No autorizado',
+                    'message' => 'Usuario no autenticado',
+                    'status' => 'error'
                 ], 401);
             }
             
@@ -170,35 +199,45 @@ class FavoritoController extends Controller
             $participante = Participante::where('idUser', $user->idUser)->first();
             
             if (!$participante) {
+                Log::warning('Usuario no es participante', ['user_id' => $user->idUser, 'role' => $user->role]);
                 return response()->json([
-                    'message' => 'Solo los participantes pueden eliminar eventos de favoritos'
+                    'error' => 'Acceso denegado',
+                    'message' => 'Solo los participantes pueden eliminar eventos de favoritos',
+                    'status' => 'error'
                 ], 403);
             }
             
+            Log::info('Participante encontrado', ['participante_id' => $participante->idParticipante]);
+            
             // Buscar el favorito
             $favorito = Favorito::where('idParticipante', $participante->idParticipante)
-                               ->where('idEvento', $idEvento)
-                               ->first();
+                              ->where('idEvento', $idEvento)
+                              ->first();
             
             if (!$favorito) {
                 return response()->json([
-                    'message' => 'Este evento no está en tus favoritos'
-                ], 404);
+                    'message' => 'Este evento no está en tus favoritos',
+                    'status' => 'info'
+                ], 200);
             }
             
             // Eliminar el favorito
             $favorito->delete();
+            Log::info('Favorito eliminado exitosamente');
             
             return response()->json([
-                'message' => 'Evento eliminado de favoritos con éxito'
-            ]);
+                'message' => 'Evento eliminado de favoritos con éxito',
+                'status' => 'success'
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Error al eliminar favorito: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
-                'message' => 'Error al eliminar el evento de favoritos',
-                'error' => $e->getMessage()
+                'error' => 'Error interno',
+                'message' => 'No se pudo eliminar el evento de favoritos. Por favor, inténtelo de nuevo.',
+                'debug' => $e->getMessage(),
+                'status' => 'error'
             ], 500);
         }
     }
