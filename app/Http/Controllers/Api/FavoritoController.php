@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Favorito;
-use App\Models\Participante;
 use App\Models\Evento;
+use App\Models\Participante;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -17,68 +17,59 @@ class FavoritoController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getFavoritos()
+    public function getFavoritos(Request $request)
     {
         try {
-            // Obtener el usuario autenticado
-            $user = Auth::user();
-            
-            if (!$user) {
+            // Verificar si el usuario está autenticado
+            if (!$request->user()) {
                 return response()->json([
-                    'message' => 'Usuario no autenticado'
+                    'error' => 'No autorizado',
+                    'message' => 'Debes iniciar sesión para ver tus favoritos',
+                    'status' => 'error'
                 ], 401);
             }
-            
+
             // Verificar si el usuario es un participante
-            $participante = Participante::where('idUser', $user->idUser)->first();
-            
-            if (!$participante) {
+            if ($request->user()->role !== 'participante') {
                 return response()->json([
-                    'message' => 'Solo los participantes pueden tener eventos favoritos'
+                    'error' => 'Acceso denegado',
+                    'message' => 'Solo los participantes pueden tener favoritos',
+                    'status' => 'error'
                 ], 403);
             }
+
+            // Obtener el idParticipante
+            $participante = Participante::where('idUser', $request->user()->idUser)->first();
             
-            // Obtener los eventos favoritos con sus relaciones
-            $favoritos = Favorito::with(['evento', 'evento.organizador'])
-                ->where('idParticipante', $participante->idParticipante)
+            if (!$participante) {
+                Log::error('Participante no encontrado para el usuario ID: ' . $request->user()->idUser);
+                return response()->json([
+                    'error' => 'Participante no encontrado',
+                    'message' => 'No se encontró el perfil de participante asociado a tu cuenta',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            // Obtener todos los favoritos del participante con información del evento
+            $favoritos = Favorito::where('idParticipante', $participante->idParticipante)
+                ->with('evento')
                 ->get();
-            
-            // Transformar los datos para la respuesta
-            $eventosData = $favoritos->map(function ($favorito) {
-                $evento = $favorito->evento;
-                if (!$evento) {
-                    return null; // Manejar el caso donde el evento ya no existe
-                }
-                
-                return [
-                    'id' => $evento->idEvento,
-                    'nombreEvento' => $evento->nombreEvento,
-                    'fechaEvento' => $evento->fechaEvento,
-                    'descripcion' => $evento->descripcion,
-                    'hora' => $evento->hora,
-                    'ubicacion' => $evento->ubicacion,
-                    'imagen' => $evento->imagen,
-                    'categoria' => $evento->categoria,
-                    'lugar' => $evento->lugar,
-                    'fechaAgregado' => $favorito->fechaAgregado,
-                    'organizador' => $evento->organizador ? [
-                        'id' => $evento->organizador->idOrganizador,
-                        'nombre_organizacion' => $evento->organizador->nombre_organizacion
-                    ] : null
-                ];
-            })->filter(); // Eliminar los valores nulos
-            
+
             return response()->json([
-                'message' => 'Eventos favoritos obtenidos con éxito',
-                'favoritos' => $eventosData
-            ]);
+                'message' => 'Favoritos obtenidos correctamente',
+                'favoritos' => $favoritos,
+                'total' => count($favoritos),
+                'status' => 'success'
+            ], 200);
+
         } catch (\Exception $e) {
             Log::error('Error al obtener favoritos: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
-                'message' => 'Error al obtener los eventos favoritos',
-                'error' => $e->getMessage()
+                'error' => 'Error al obtener favoritos',
+                'message' => 'No se pudieron obtener los favoritos',
+                'debug' => $e->getMessage(),
+                'status' => 'error'
             ], 500);
         }
     }
