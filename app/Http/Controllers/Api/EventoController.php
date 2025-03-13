@@ -280,5 +280,87 @@ class EventoController extends Controller
         }
     }
 
-    // Otros métodos del controlador...
+    // Actualizar un evento existente
+    public function updateEvento(Request $request, $id)
+    {
+        try {
+            // Obtener el usuario autenticado
+            $user = Auth::user();
+
+            // Verificar que el usuario es un organizador
+            $organizador = Organizador::where('user_id', $user->idUser)->first();
+            if (!$organizador) {
+                return response()->json([
+                    'error' => 'Acceso denegado',
+                    'message' => 'Solo los organizadores pueden modificar eventos',
+                    'code' => 'UNAUTHORIZED_ROLE',
+                    'status' => 'error'
+                ], 403);
+            }
+
+            try {
+                // Buscar el evento
+                $evento = Evento::findOrFail($id);
+                
+                // Verificar que el organizador autenticado es el dueño del evento
+                if ($evento->idOrganizador !== $organizador->idOrganizador) {
+                    return response()->json([
+                        'error' => 'Acceso denegado',
+                        'message' => 'No tienes permiso para modificar este evento',
+                        'code' => 'UNAUTHORIZED_EVENT',
+                        'status' => 'error'
+                    ], 403);
+                }
+
+                // Validar los datos del evento
+                $validated = $request->validate([
+                    'nombreEvento' => 'required|string|max:255',
+                    'descripcion' => 'required|string',
+                    'fechaEvento' => 'required|date|after:today',
+                    'hora' => 'required|date_format:H:i',
+                    'ubicacion' => 'required|string|max:255',
+                    'lugar' => 'required|string|max:255',
+                    'categoria' => 'required|string|max:50',
+                    'imagen' => 'nullable|string'
+                ]);
+
+                // Actualizar el evento
+                $evento->update($validated);
+
+                return response()->json([
+                    'message' => 'Evento actualizado correctamente',
+                    'evento' => $evento,
+                    'status' => 'success'
+                ], 200);
+
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return response()->json([
+                    'error' => 'Error de validación',
+                    'messages' => $e->errors(),
+                    'status' => 'error'
+                ], 422);
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                return response()->json([
+                    'error' => 'Evento no encontrado',
+                    'message' => 'El evento que intentas actualizar no existe',
+                    'code' => 'EVENT_NOT_FOUND',
+                    'status' => 'error'
+                ], 404);
+            } catch (\Exception $e) {
+                Log::error('Error al actualizar evento: ' . $e->getMessage());
+                return response()->json([
+                    'error' => 'Error al actualizar el evento',
+                    'message' => 'No se pudo actualizar el evento. Por favor, inténtelo de nuevo.',
+                    'status' => 'error'
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar evento: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al actualizar el evento',
+                'message' => 'No se pudo actualizar el evento. Por favor, inténtelo de nuevo.',
+                'status' => 'error'
+            ], 500);
+        }
+    }
 } 
