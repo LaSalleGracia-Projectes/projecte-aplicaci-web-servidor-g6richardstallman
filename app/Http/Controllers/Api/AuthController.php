@@ -16,6 +16,15 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        // Verificar si hay un token activo en el header
+        if ($request->bearerToken()) {
+            return response()->json([
+                'error' => 'Sesión activa',
+                'message' => 'Ya existe una sesión activa. Cierre sesión antes de registrar un nuevo usuario.',
+                'status' => 'error'
+            ], 403);
+        }
+
         try {
             // Validar datos de entrada
             $validated = $request->validate([
@@ -55,8 +64,11 @@ class AuthController extends Controller
                 'role' => $validated['role']
             ]);
 
-            // Crear token y guardarlo en remember_token
-            $token = $user->createToken('auth_token')->plainTextToken;
+            // Eliminar tokens existentes (por si acaso)
+            $user->tokens()->delete();
+            
+            // Crear un token con nombre fijo para que siempre sea el mismo
+            $token = $user->createToken('persistent_token')->plainTextToken;
             $user->remember_token = $token;
             $user->save();
 
@@ -78,33 +90,28 @@ class AuthController extends Controller
                 'message' => 'Usuario registrado correctamente',
                 'user' => $user,
                 'access_token' => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'status' => 'success'
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'error' => 'Error de validación',
-                'messages' => $e->errors()
+                'messages' => $e->errors(),
+                'status' => 'error'
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error en el registro: '.$e->getMessage());
             return response()->json([
                 'error' => 'Error en el registro',
-                'message' => 'No se pudo completar el registro. Por favor, inténtelo de nuevo.'
+                'message' => 'No se pudo completar el registro. Por favor, inténtelo de nuevo.',
+                'status' => 'error'
             ], 500);
         }
     }
 
     public function login(Request $request)
     {
-        // Verificar si hay un token activo en el header
-        if ($request->bearerToken()) {
-            return response()->json([
-                'error' => 'Sesión activa',
-                'message' => 'Ya existe una sesión activa. Cierre sesión antes de iniciar una nueva.'
-            ], 403);
-        }
-
         try {
             $validated = $request->validate([
                 'email' => 'required|string|email',
@@ -118,63 +125,79 @@ class AuthController extends Controller
             if (!auth()->attempt($validated)) {
                 return response()->json([
                     'error' => 'Credenciales incorrectas',
-                    'message' => 'El email o la contraseña son incorrectos'
+                    'message' => 'El email o la contraseña son incorrectos',
+                    'status' => 'error'
                 ], 401);
             }
 
             $user = auth()->user();
-            $token = $user->createToken('auth_token')->plainTextToken;
+            
+            // Revocar todos los tokens existentes
+            $user->tokens()->delete();
+            
+            // Crear un token con nombre fijo para que siempre sea el mismo
+            $token = $user->createToken('persistent_token')->plainTextToken;
 
             return response()->json([
                 'message' => 'Login exitoso',
                 'user' => $user,
                 'access_token' => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'status' => 'success'
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'error' => 'Error de validación',
-                'messages' => $e->errors()
+                'messages' => $e->errors(),
+                'status' => 'error'
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error en el login: '.$e->getMessage());
+            Log::error($e->getTraceAsString());
+            
             return response()->json([
                 'error' => 'Error en el login',
-                'message' => 'No se pudo iniciar sesión. Por favor, inténtelo de nuevo.'
+                'message' => 'No se pudo iniciar sesión. Por favor, inténtelo de nuevo.',
+                'status' => 'error'
             ], 500);
         }
     }
 
     public function logout(Request $request)
     {
-        // Verificar si hay un token activo
-        if (!$request->bearerToken()) {
-            return response()->json([
-                'message' => 'No hay sesión activa'
-            ], 200);
-        }
-
         try {
-            $token = PersonalAccessToken::findToken($request->bearerToken());
+            // Verificamos si existe un usuario autenticado
+            $user = $request->user();
             
-            if (!$token) {
+            if ($user) {
+                // Revocamos todos los tokens del usuario (obligándolo a iniciar sesión nuevamente)
+                $user->tokens()->delete();
+                
                 return response()->json([
-                    'message' => 'No hay sesión activa'
+                    'message' => 'Sesión cerrada correctamente',
+                    'status' => 'success'
                 ], 200);
             }
-
-            $token->delete();
             
+            // Si no hay usuario autenticado, devolvemos un error
             return response()->json([
-                'message' => 'Sesión cerrada correctamente'
-            ], 200);
+                'error' => 'No autorizado',
+                'message' => 'No hay sesión activa para cerrar',
+                'status' => 'error',
+                'code' => 'NO_ACTIVE_SESSION'
+            ], 401);
             
         } catch (\Exception $e) {
-            Log::error('Error en el logout: '.$e->getMessage());
+            Log::error('Error en el logout: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
             return response()->json([
-                'message' => 'No hay sesión activa'
-            ], 200);
+                'error' => 'Error al cerrar sesión',
+                'message' => 'No se pudo cerrar la sesión. Por favor, inténtelo de nuevo.',
+                'status' => 'error',
+                'code' => 'LOGOUT_ERROR'
+            ], 500);
         }
     }
     
