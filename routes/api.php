@@ -17,6 +17,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/favoritos', [FavoritoController::class, 'addFavorito']);
     Route::delete('/favoritos/{idEvento}', [FavoritoController::class, 'removeFavorito']);
     Route::get('/favoritos/check/{idEvento}', [FavoritoController::class, 'checkFavorito']);
+
+    // Ruta para crear un evento
+    Route::post('/eventos', [EventoController::class, 'createEvento']);
+
+    // Ruta para eliminar un evento
+    Route::delete('/eventos/{id}', [EventoController::class, 'deleteEvento']);
 });
 
 Route::post('/register', [AuthController::class, 'register']);

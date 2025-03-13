@@ -11,12 +11,16 @@ class Participante extends Model
 {
     use HasFactory;
 
+    // Nombre de la tabla
     protected $table = 'participante';
+    
+    // Clave primaria
     protected $primaryKey = 'idParticipante';
     public $incrementing = true; 
     protected $keyType = 'int'; 
     public $timestamps = true;
 
+    // Campos que se pueden asignar 
     protected $fillable = [
         'dni',
         'telefono',
@@ -24,6 +28,7 @@ class Participante extends Model
         'direccion'
     ];
 
+    // Relación con User
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'idUser', 'idUser');
@@ -39,13 +44,13 @@ class Participante extends Model
         return $this->hasMany(Valoracion::class, 'idParticipante', 'idParticipante');
     }
 
-    // Nueva relación para favoritos
+    // Relación con Favoritos
     public function favoritos(): HasMany
     {
         return $this->hasMany(Favorito::class, 'idParticipante', 'idParticipante');
     }
-    
-    // Método para obtener todos los eventos favoritos de un participante
+
+    // Relación con Eventos a través de Favoritos
     public function eventosFavoritos()
     {
         return Evento::whereIn('idEvento', $this->favoritos()->pluck('idEvento'));
