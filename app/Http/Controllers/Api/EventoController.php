@@ -391,8 +391,8 @@ class EventoController extends Controller
                 ], 403);
             }
 
-            // Obtener el idOrganizador
-            $organizador = \App\Models\Organizador::where('idUser', $request->user()->idUser)->first();
+            // Obtener el idOrganizador usando user_id en lugar de idUser
+            $organizador = Organizador::where('user_id', $request->user()->idUser)->first();
             
             if (!$organizador) {
                 Log::error('Organizador no encontrado para el usuario ID: ' . $request->user()->idUser);
@@ -404,8 +404,8 @@ class EventoController extends Controller
             }
 
             // Obtener todos los eventos del organizador
-            $eventos = \App\Models\Evento::where('idOrganizador', $organizador->idOrganizador)
-                ->with(['categoria', 'ubicacion']) // Incluir relaciones si son necesarias
+            $eventos = Evento::where('idOrganizador', $organizador->idOrganizador)
+                ->with(['entradas']) // Incluir relaciones si son necesarias
                 ->get();
 
             return response()->json([
