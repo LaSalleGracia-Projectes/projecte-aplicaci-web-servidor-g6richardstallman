@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EventoController;
 use App\Http\Controllers\Api\FavoritoController;
+use App\Http\Controllers\Api\GoogleAuthController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -15,7 +16,7 @@ Route::get('/eventos/{id}', [EventoController::class, 'getEventoById']);
 
 // Rutas protegidas que requieren autenticación
 Route::middleware('auth:sanctum')->group(function () {
-    // Información del usuario
+    // Información del usuario 
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
@@ -35,3 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/eventos/{id}', [EventoController::class, 'updateEvento']);
     Route::get('/mis-eventos', [EventoController::class, 'getMisEventos']);
 });
+
+// Rutas para autenticación con Google
+Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
