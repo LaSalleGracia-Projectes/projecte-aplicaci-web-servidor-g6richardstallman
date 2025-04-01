@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Str;
+use App\Mail\RegistroConfirmacion;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
@@ -64,6 +66,9 @@ class AuthController extends Controller
                 'role' => $validated['role']
             ]);
 
+            // Enviar correo de confirmación
+            Mail::to($user->email)->send(new RegistroConfirmacion($user));
+
             // Eliminar tokens existentes (por si acaso)
             $user->tokens()->delete();
             
@@ -87,11 +92,9 @@ class AuthController extends Controller
             }
 
             return response()->json([
-                'message' => 'Usuario registrado correctamente',
+                'message' => 'Usuario registrado exitosamente',
                 'user' => $user,
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-                'status' => 'success'
+                'token' => $token
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -103,9 +106,8 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             Log::error('Error en el registro: '.$e->getMessage());
             return response()->json([
-                'error' => 'Error en el registro',
-                'message' => 'No se pudo completar el registro. Por favor, inténtelo de nuevo.',
-                'status' => 'error'
+                'message' => 'Error al registrar usuario',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
