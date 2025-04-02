@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string('imagen')->nullable();
             $table->string('categoria');
             $table->string('lugar');
+            $table->boolean('es_online')->default(false);
             $table->unsignedBigInteger('idOrganizador');
             $table->timestamps();
             $table->softDeletes();

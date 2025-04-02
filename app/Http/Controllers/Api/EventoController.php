@@ -7,11 +7,59 @@ use App\Models\Evento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Models\Participante;
 use App\Models\Organizador;
+use App\Models\TipoEntrada;
 
 class EventoController extends Controller
 {
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->initializeStorage();
+    }
+
+    /**
+     * Inicializa el almacenamiento para las imágenes
+     */
+    private function initializeStorage()
+    {
+        try {
+            // Verificar si existe el directorio para eventos
+            $storagePath = storage_path('app/public/eventos');
+            if (!file_exists($storagePath)) {
+                mkdir($storagePath, 0755, true);
+                Log::info('Directorio de almacenamiento creado en inicialización', ['path' => $storagePath]);
+            }
+
+            // Verificar si existe la imagen por defecto
+            $defaultImagePath = storage_path('app/public/eventos/default.jpg');
+            if (!file_exists($defaultImagePath)) {
+                // Copiar imagen por defecto desde recursos públicos
+                $publicDefaultImage = public_path('img/default-event.jpg');
+                if (file_exists($publicDefaultImage)) {
+                    copy($publicDefaultImage, $defaultImagePath);
+                    Log::info('Imagen por defecto copiada en inicialización');
+                } else {
+                    // Crear una imagen por defecto básica
+                    $img = imagecreatetruecolor(800, 600);
+                    $backgroundColor = imagecolorallocate($img, 200, 200, 200);
+                    $textColor = imagecolorallocate($img, 0, 0, 0);
+                    imagefill($img, 0, 0, $backgroundColor);
+                    imagestring($img, 5, 320, 300, 'Evento sin imagen', $textColor);
+                    imagejpeg($img, $defaultImagePath);
+                    imagedestroy($img);
+                    Log::info('Imagen por defecto creada en inicialización');
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error al inicializar almacenamiento: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Obtener todos los eventos
      *
@@ -218,63 +266,273 @@ class EventoController extends Controller
     public function createEvento(Request $request)
     {
         try {
-            // Obtener el usuario autenticado
-            $user = Auth::user();
+            Log::info('Iniciando creación de evento', ['request' => $request->except('imagen')]);
+            
+            // Validar datos de entrada
+            $validated = $request->validate([
+                'titulo' => 'required|string|max:255',
+                'descripcion' => 'required|string',
+                'fecha' => 'required|date|after:today',
+                'hora' => 'required|date_format:H:i',
+                'ubicacion' => 'required|string|max:255',
+                'categoria' => 'required|string|max:100',
+                'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'es_online' => 'required|boolean',
+                'tipos_entrada' => 'required|array|min:1',
+                'tipos_entrada.*.nombre' => 'required|string|max:100',
+                'tipos_entrada.*.precio' => 'required|numeric|min:0',
+                'tipos_entrada.*.cantidad_disponible' => 'required_if:tipos_entrada.*.es_ilimitado,false|nullable|integer|min:1',
+                'tipos_entrada.*.descripcion' => 'nullable|string',
+                'tipos_entrada.*.es_ilimitado' => 'required|boolean'
+            ], [
+                'titulo.required' => 'El título es obligatorio',
+                'descripcion.required' => 'La descripción es obligatoria',
+                'fecha.required' => 'La fecha es obligatoria',
+                'fecha.after' => 'La fecha debe ser posterior a hoy',
+                'hora.required' => 'La hora es obligatoria',
+                'hora.date_format' => 'El formato de hora debe ser HH:MM',
+                'ubicacion.required' => 'La ubicación es obligatoria',
+                'categoria.required' => 'La categoría es obligatoria',
+                'imagen.image' => 'El archivo debe ser una imagen',
+                'imagen.mimes' => 'La imagen debe ser de tipo: jpeg, png, jpg, gif',
+                'imagen.max' => 'La imagen no puede pesar más de 2MB',
+                'es_online.required' => 'Debe especificar si el evento es online',
+                'tipos_entrada.required' => 'Debe especificar al menos un tipo de entrada',
+                'tipos_entrada.min' => 'Debe especificar al menos un tipo de entrada',
+                'tipos_entrada.*.nombre.required' => 'El nombre del tipo de entrada es obligatorio',
+                'tipos_entrada.*.precio.required' => 'El precio del tipo de entrada es obligatorio',
+                'tipos_entrada.*.precio.numeric' => 'El precio debe ser un número',
+                'tipos_entrada.*.precio.min' => 'El precio no puede ser negativo',
+                'tipos_entrada.*.cantidad_disponible.required_if' => 'La cantidad de entradas disponibles es obligatoria para entradas limitadas',
+                'tipos_entrada.*.cantidad_disponible.integer' => 'La cantidad debe ser un número entero',
+                'tipos_entrada.*.cantidad_disponible.min' => 'La cantidad debe ser mayor a 0',
+                'tipos_entrada.*.es_ilimitado.required' => 'Debe especificar si las entradas son ilimitadas',
+                'tipos_entrada.*.es_ilimitado.boolean' => 'El campo es_ilimitado debe ser verdadero o falso'
+            ]);
+            
+            Log::info('Validación completada con éxito', ['validated' => $validated]);
 
-            // Verificar que el usuario es un organizador
+            // Obtener el organizador del usuario actual
+            $user = $request->user();
+            Log::info('Información del usuario', ['id' => $user->idUser, 'role' => $user->role]);
+            
             $organizador = Organizador::where('user_id', $user->idUser)->first();
+            Log::info('Resultado de búsqueda de organizador', ['encontrado' => $organizador ? true : false]);
+            
             if (!$organizador) {
+                Log::warning('Usuario no es organizador', ['user_id' => $user->idUser]);
                 return response()->json([
-                    'error' => 'Acceso denegado',
+                    'error' => 'No autorizado',
                     'message' => 'Solo los organizadores pueden crear eventos',
-                    'code' => 'UNAUTHORIZED_ROLE',
                     'status' => 'error'
                 ], 403);
             }
+            
+            Log::info('Organizador obtenido', ['id' => $organizador->idOrganizador]);
 
-            // Validar los datos del evento
-            $validated = $request->validate([
-                'nombreEvento' => 'required|string|max:255',
-                'descripcion' => 'required|string',
-                'fechaEvento' => 'required|date|after:today',
-                'hora' => 'required|date_format:H:i',
-                'ubicacion' => 'required|string|max:255',
-                'lugar' => 'required|string|max:255',
-                'categoria' => 'required|string|max:50',
-                'imagen' => 'nullable|string'
-            ]);
+            DB::beginTransaction();
+            try {
+                Log::info('Iniciando transacción de DB');
+                
+                // Procesar la imagen si se proporciona
+                $imagenPath = null;
+                $imagenProporcionada = false;
+                
+                if ($request->hasFile('imagen')) {
+                    $imagenProporcionada = true;
+                    Log::info('Procesando imagen subida por el usuario');
+                    
+                    try {
+                        // Verificar si existe el directorio para eventos
+                        $storagePath = storage_path('app/public/eventos');
+                        if (!file_exists($storagePath)) {
+                            mkdir($storagePath, 0755, true);
+                            Log::info('Directorio de almacenamiento creado', ['path' => $storagePath]);
+                        }
+                        
+                        $imagenPath = $request->file('imagen')->store('eventos', 'public');
+                        Log::info('Imagen guardada', ['path' => $imagenPath]);
+                    } catch (\Exception $e) {
+                        Log::error('Error al guardar imagen: ' . $e->getMessage());
+                        DB::rollback();
+                        return response()->json([
+                            'error' => 'Error al guardar la imagen',
+                            'message' => 'Ocurrió un problema al guardar la imagen del evento. Por favor, intente con otra imagen o más tarde.',
+                            'status' => 'error'
+                        ], 500);
+                    }
+                } else {
+                    // Usar imagen por defecto
+                    Log::info('No se proporcionó imagen, usando imagen por defecto');
+                    $imagenPath = 'eventos/default.jpg';
+                }
 
-            // Crear el evento
-            $evento = new Evento();
-            $evento->nombreEvento = $validated['nombreEvento'];
-            $evento->descripcion = $validated['descripcion'];
-            $evento->fechaEvento = $validated['fechaEvento'];
-            $evento->hora = $validated['hora'];
-            $evento->ubicacion = $validated['ubicacion'];
-            $evento->lugar = $validated['lugar'];
-            $evento->categoria = $validated['categoria'];
-            $evento->imagen = $validated['imagen'] ?? null;
-            $evento->idOrganizador = $organizador->idOrganizador;
+                // Crear el evento con los nombres de campos correctos
+                Log::info('Creando evento');
+                $evento = new Evento();
+                $evento->nombreEvento = $validated['titulo'];
+                $evento->descripcion = $validated['descripcion'];
+                $evento->fechaEvento = $validated['fecha'];
+                $evento->hora = $validated['hora'];
+                $evento->ubicacion = $validated['ubicacion'];
+                $evento->lugar = $validated['ubicacion']; // Duplicando el valor en ambos campos
+                $evento->categoria = $validated['categoria'];
+                $evento->imagen = $imagenPath;
+                $evento->es_online = $validated['es_online'];
+                $evento->idOrganizador = $organizador->idOrganizador;
+                
+                Log::info('Datos del evento a guardar', ['evento' => json_encode([
+                    'nombreEvento' => $evento->nombreEvento,
+                    'descripcion' => $evento->descripcion,
+                    'fechaEvento' => $evento->fechaEvento,
+                    'hora' => $evento->hora,
+                    'ubicacion' => $evento->ubicacion,
+                    'lugar' => $evento->lugar,
+                    'categoria' => $evento->categoria,
+                    'imagen' => $evento->imagen,
+                    'es_online' => $evento->es_online,
+                    'idOrganizador' => $evento->idOrganizador
+                ])]);
 
-            $evento->save();
+                try {
+                    $resultado = $evento->save();
+                    Log::info('Resultado de guardar evento', ['resultado' => $resultado, 'id' => $evento->idEvento ?? 'no asignado']);
+                    
+                    if (!$resultado) {
+                        Log::error('Error al guardar el evento: resultado falso');
+                        throw new \Exception('Error al guardar el evento en la base de datos');
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Excepción al guardar evento: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                    throw new \Exception('Error al guardar el evento: ' . $e->getMessage());
+                }
+                
+                Log::info('Evento guardado con éxito', ['id' => $evento->idEvento]);
 
-            return response()->json([
-                'message' => 'Evento creado correctamente',
-                'evento' => $evento,
-                'status' => 'success'
-            ], 201);
+                // Crear los tipos de entrada
+                Log::info('Creando tipos de entrada', ['cantidad' => count($validated['tipos_entrada'])]);
+                
+                foreach ($validated['tipos_entrada'] as $index => $tipoEntrada) {
+                    Log::info('Procesando tipo de entrada', ['index' => $index, 'data' => $tipoEntrada]);
+                    
+                    try {
+                        $nuevoTipoEntrada = new TipoEntrada();
+                        $nuevoTipoEntrada->idEvento = $evento->idEvento;
+                        $nuevoTipoEntrada->nombre = $tipoEntrada['nombre'];
+                        $nuevoTipoEntrada->precio = $tipoEntrada['precio'];
+                        $nuevoTipoEntrada->cantidad_disponible = $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'];
+                        $nuevoTipoEntrada->entradas_vendidas = 0;
+                        $nuevoTipoEntrada->descripcion = $tipoEntrada['descripcion'] ?? null;
+                        $nuevoTipoEntrada->es_ilimitado = $tipoEntrada['es_ilimitado'];
+                        $nuevoTipoEntrada->activo = true;
+
+                        Log::info('Datos del tipo de entrada a guardar', [
+                            'idEvento' => $nuevoTipoEntrada->idEvento,
+                            'nombre' => $nuevoTipoEntrada->nombre,
+                            'precio' => $nuevoTipoEntrada->precio,
+                            'cantidad_disponible' => $nuevoTipoEntrada->cantidad_disponible,
+                            'entradas_vendidas' => $nuevoTipoEntrada->entradas_vendidas,
+                            'descripcion' => $nuevoTipoEntrada->descripcion,
+                            'es_ilimitado' => $nuevoTipoEntrada->es_ilimitado,
+                            'activo' => $nuevoTipoEntrada->activo
+                        ]);
+                        
+                        $resultadoTipo = $nuevoTipoEntrada->save();
+                        Log::info('Resultado de guardar tipo de entrada', ['resultado' => $resultadoTipo, 'id' => $nuevoTipoEntrada->idTipoEntrada ?? 'no asignado']);
+                        
+                        if (!$resultadoTipo) {
+                            Log::error('Error al guardar tipo de entrada: resultado falso');
+                            throw new \Exception('Error al guardar el tipo de entrada');
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Excepción al guardar tipo de entrada: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                        throw new \Exception('Error al guardar tipo de entrada: ' . $e->getMessage());
+                    }
+                    
+                    Log::info('Tipo de entrada guardado con éxito', ['id' => $nuevoTipoEntrada->idTipoEntrada ?? 'desconocido']);
+                }
+
+                DB::commit();
+                Log::info('Transacción completada con éxito');
+
+                // Cargar la relación con los tipos de entrada
+                try {
+                    Log::info('Intentando cargar relación tiposEntrada');
+                    $evento->load('tiposEntrada');
+                    Log::info('Relación tiposEntrada cargada', ['cantidad' => count($evento->tiposEntrada)]);
+                } catch (\Exception $e) {
+                    Log::warning('Error al cargar relación tiposEntrada: ' . $e->getMessage());
+                    // Continuar aunque falle la carga de la relación
+                }
+
+                $mensaje = 'Evento creado con éxito';
+                if (!$imagenProporcionada) {
+                    $mensaje = 'Evento creado con éxito. Se ha utilizado una imagen por defecto.';
+                }
+
+                return response()->json([
+                    'message' => $mensaje,
+                    'data' => $evento,
+                    'status' => 'success'
+                ], 201);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                Log::error('Error en transacción: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+                throw $e;
+            }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error de validación: ' . json_encode($e->errors()));
             return response()->json([
                 'error' => 'Error de validación',
                 'messages' => $e->errors(),
                 'status' => 'error'
             ], 422);
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Error de base de datos al crear evento: ' . $e->getMessage(), [
+                'sql' => $e->getSql() ?? 'No disponible', 
+                'bindings' => $e->getBindings() ?? [],
+                'code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $errorCode = $e->errorInfo[1] ?? 0;
+            
+            if ($errorCode == 1062) {
+                return response()->json([
+                    'error' => 'Error al crear el evento',
+                    'message' => 'Ya existe un evento con ese nombre',
+                    'status' => 'error'
+                ], 409);
+            }
+            
+            return response()->json([
+                'error' => 'Error de base de datos',
+                'message' => 'Error al guardar la información en la base de datos: ' . $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        } catch (\PDOException $e) {
+            Log::error('Error PDO al crear evento: ' . $e->getMessage(), [
+                'code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Error de conexión a la base de datos',
+                'message' => 'Error al conectar con la base de datos: ' . $e->getMessage(),
+                'status' => 'error'
+            ], 500);
         } catch (\Exception $e) {
-            Log::error('Error al crear evento: ' . $e->getMessage());
+            Log::error('Error al crear evento: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'error' => 'Error al crear el evento',
-                'message' => 'No se pudo crear el evento. Por favor, inténtelo de nuevo.',
+                'message' => 'Se produjo un error inesperado al crear el evento: ' . $e->getMessage(),
                 'status' => 'error'
             ], 500);
         }
@@ -284,81 +542,112 @@ class EventoController extends Controller
     public function updateEvento(Request $request, $id)
     {
         try {
-            // Obtener el usuario autenticado
-            $user = Auth::user();
-
-            // Verificar que el usuario es un organizador
+            // Obtener el organizador del usuario actual
+            $user = $request->user();
             $organizador = Organizador::where('user_id', $user->idUser)->first();
+            
             if (!$organizador) {
                 return response()->json([
-                    'error' => 'Acceso denegado',
+                    'error' => 'No autorizado',
                     'message' => 'Solo los organizadores pueden modificar eventos',
-                    'code' => 'UNAUTHORIZED_ROLE',
+                    'status' => 'error'
+                ], 403);
+            }
+            
+            // Verificar que el evento existe y pertenece al organizador actual
+            $evento = Evento::where('idEvento', $id)
+                          ->where('idOrganizador', $organizador->idOrganizador)
+                          ->first();
+
+            if (!$evento) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'El evento no existe o no tienes permisos para modificarlo',
                     'status' => 'error'
                 ], 403);
             }
 
-            try {
-                // Buscar el evento
-                $evento = Evento::findOrFail($id);
-                
-                // Verificar que el organizador autenticado es el dueño del evento
-                if ($evento->idOrganizador !== $organizador->idOrganizador) {
-                    return response()->json([
-                        'error' => 'Acceso denegado',
-                        'message' => 'No tienes permiso para modificar este evento',
-                        'code' => 'UNAUTHORIZED_EVENT',
-                        'status' => 'error'
-                    ], 403);
-                }
+            // Validar datos de entrada
+            $validated = $request->validate([
+                'titulo' => 'sometimes|string|max:255',
+                'descripcion' => 'sometimes|string',
+                'fecha' => 'sometimes|date|after:today',
+                'hora' => 'sometimes|date_format:H:i',
+                'ubicacion' => 'sometimes|string|max:255',
+                'categoria' => 'sometimes|string|max:100',
+                'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'es_online' => 'sometimes|boolean',
+                'enlace_streaming' => 'required_if:es_online,true|nullable|url',
+                'tipos_entrada' => 'sometimes|array|min:1',
+                'tipos_entrada.*.idTipoEntrada' => 'sometimes|exists:tipo_entrada,idTipoEntrada',
+                'tipos_entrada.*.nombre' => 'required_with:tipos_entrada|string|max:100',
+                'tipos_entrada.*.precio' => 'required_with:tipos_entrada|numeric|min:0',
+                'tipos_entrada.*.cantidad_disponible' => 'required_if:tipos_entrada.*.es_ilimitado,false|nullable|integer|min:1',
+                'tipos_entrada.*.descripcion' => 'nullable|string',
+                'tipos_entrada.*.es_ilimitado' => 'required_with:tipos_entrada|boolean',
+                'tipos_entrada.*.activo' => 'sometimes|boolean'
+            ]);
 
-                // Validar los datos del evento
-                $validated = $request->validate([
-                    'nombreEvento' => 'required|string|max:255',
-                    'descripcion' => 'required|string',
-                    'fechaEvento' => 'required|date|after:today',
-                    'hora' => 'required|date_format:H:i',
-                    'ubicacion' => 'required|string|max:255',
-                    'lugar' => 'required|string|max:255',
-                    'categoria' => 'required|string|max:50',
-                    'imagen' => 'nullable|string'
-                ]);
-
-                // Actualizar el evento
-                $evento->update($validated);
-
-                return response()->json([
-                    'message' => 'Evento actualizado correctamente',
-                    'evento' => $evento,
-                    'status' => 'success'
-                ], 200);
-
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                return response()->json([
-                    'error' => 'Error de validación',
-                    'messages' => $e->errors(),
-                    'status' => 'error'
-                ], 422);
-            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-                return response()->json([
-                    'error' => 'Evento no encontrado',
-                    'message' => 'El evento que intentas actualizar no existe',
-                    'code' => 'EVENT_NOT_FOUND',
-                    'status' => 'error'
-                ], 404);
-            } catch (\Exception $e) {
-                Log::error('Error al actualizar evento: ' . $e->getMessage());
-                return response()->json([
-                    'error' => 'Error al actualizar el evento',
-                    'message' => 'No se pudo actualizar el evento. Por favor, inténtelo de nuevo.',
-                    'status' => 'error'
-                ], 500);
+            // Procesar la imagen si se proporciona
+            if ($request->hasFile('imagen')) {
+                $imagenPath = $request->file('imagen')->store('eventos', 'public');
+                $validated['imagen'] = $imagenPath;
             }
+
+            // Actualizar el evento
+            $evento->update($validated);
+
+            // Actualizar tipos de entrada si se proporcionan
+            if (isset($validated['tipos_entrada'])) {
+                foreach ($validated['tipos_entrada'] as $tipoEntrada) {
+                    if (isset($tipoEntrada['idTipoEntrada'])) {
+                        // Actualizar tipo de entrada existente
+                        $tipoEntradaModel = $evento->tiposEntrada()
+                            ->where('idTipoEntrada', $tipoEntrada['idTipoEntrada'])
+                            ->first();
+
+                        if ($tipoEntradaModel) {
+                            $tipoEntradaModel->update([
+                                'nombre' => $tipoEntrada['nombre'],
+                                'precio' => $tipoEntrada['precio'],
+                                'cantidad_disponible' => $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'],
+                                'descripcion' => $tipoEntrada['descripcion'] ?? null,
+                                'es_ilimitado' => $tipoEntrada['es_ilimitado'],
+                                'activo' => $tipoEntrada['activo'] ?? true
+                            ]);
+                        }
+                    } else {
+                        // Crear nuevo tipo de entrada
+                        $evento->tiposEntrada()->create([
+                            'nombre' => $tipoEntrada['nombre'],
+                            'precio' => $tipoEntrada['precio'],
+                            'cantidad_disponible' => $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'],
+                            'entradas_vendidas' => 0,
+                            'descripcion' => $tipoEntrada['descripcion'] ?? null,
+                            'es_ilimitado' => $tipoEntrada['es_ilimitado'],
+                            'activo' => true
+                        ]);
+                    }
+                }
+            }
+
+            return response()->json([
+                'message' => 'Evento actualizado con éxito',
+                'data' => $evento->load('tiposEntrada'),
+                'status' => 'success'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors(),
+                'status' => 'error'
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Error al actualizar evento: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Error al actualizar el evento',
-                'message' => 'No se pudo actualizar el evento. Por favor, inténtelo de nuevo.',
+                'message' => 'No se pudo actualizar el evento',
                 'status' => 'error'
             ], 500);
         }

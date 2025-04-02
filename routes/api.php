@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EventoController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\GoogleAuthController;
+use App\Http\Controllers\Api\TipoEntradaController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -41,7 +42,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/eventos/{id}', [EventoController::class, 'deleteEvento']);
     Route::put('/eventos/{id}', [EventoController::class, 'updateEvento']);
     Route::get('/mis-eventos', [EventoController::class, 'getMisEventos']);
+
+    // Rutas para tipos de entrada (protegidas por auth:sanctum y middleware de organizador)
+    Route::post('/eventos/{idEvento}/tipos-entrada', [TipoEntradaController::class, 'store']);
+    Route::put('/eventos/{idEvento}/tipos-entrada/{idTipoEntrada}', [TipoEntradaController::class, 'update']);
+    Route::delete('/eventos/{idEvento}/tipos-entrada/{idTipoEntrada}', [TipoEntradaController::class, 'destroy']);
 });
+
+// Ruta pública para obtener tipos de entrada de un evento
+Route::get('/eventos/{idEvento}/tipos-entrada', [TipoEntradaController::class, 'index']);
 
 // Rutas para autenticación con Google
 Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);
