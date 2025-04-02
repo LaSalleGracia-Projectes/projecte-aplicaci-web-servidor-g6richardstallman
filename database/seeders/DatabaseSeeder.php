@@ -21,7 +21,8 @@ class DatabaseSeeder extends Seeder
             PagoSeeder::class,
             ValoracionSeeder::class,
             VentaEntradaSeeder::class,
-            FavoritoSeeder::class
+            FavoritoSeeder::class,
+            TipoEntradaSeeder::class
         ]);
     }
 }

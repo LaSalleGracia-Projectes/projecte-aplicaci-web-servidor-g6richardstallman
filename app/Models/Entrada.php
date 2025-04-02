@@ -26,12 +26,12 @@ class Entrada extends Model
     // Relación con Evento
     public function evento(): BelongsTo
     {
-        return $this->belongsTo(Evento::class, 'evento_id');
+        return $this->belongsTo(Evento::class, 'idEvento', 'idEvento');
     }
 
     // Relación con VentaEntrada
     public function ventaEntradas(): HasMany
     {
-        return $this->hasMany(VentaEntrada::class, 'entrada_id');
+        return $this->hasMany(VentaEntrada::class, 'idEntrada', 'idEntrada');
     }
 }

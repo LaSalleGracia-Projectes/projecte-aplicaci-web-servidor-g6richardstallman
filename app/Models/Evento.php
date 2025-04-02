@@ -25,7 +25,8 @@ class Evento extends Model
         'imagen',
         'categoria',
         'lugar',
-        'idOrganizador'
+        'idOrganizador',
+        'es_online'
     ];
 
     public function organizador(): BelongsTo
@@ -36,6 +37,12 @@ class Evento extends Model
     public function entradas(): HasMany
     {
         return $this->hasMany(Entrada::class, 'idEvento', 'idEvento');
+    }
+
+    // Relación para tipos de entrada
+    public function tiposEntrada(): HasMany
+    {
+        return $this->hasMany(TipoEntrada::class, 'idEvento', 'idEvento');
     }
 
     // Nueva relación para favoritos
