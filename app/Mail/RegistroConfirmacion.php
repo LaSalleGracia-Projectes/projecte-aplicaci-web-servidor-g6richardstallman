@@ -20,6 +20,6 @@ class RegistroConfirmacion extends Mailable
     public function build()
     {
         return $this->view('emails.registro-confirmacion')
-                    ->subject('¡Bienvenido a Evenflix! Confirma tu registro');
+                    ->subject('¡Bienvenido a Eventflix! Confirma tu registro');
     }
 } 
