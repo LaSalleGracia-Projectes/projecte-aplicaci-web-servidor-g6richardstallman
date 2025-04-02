@@ -4,24 +4,84 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class TipoEntrada extends Model
 {
     use HasFactory;
 
-    protected $table = 'tipos_entrada';
+    protected $table = 'tipo_entrada';
     protected $primaryKey = 'idTipoEntrada';
-    public $timestamps = true;
 
     protected $fillable = [
+        'idEvento',
         'nombre',
+        'precio',
+        'cantidad_disponible',
+        'entradas_vendidas',
         'descripcion',
-        'categoria'  // Los pondrá el organizador cuando cree el evento (distintos tipos de entradas)
+        'es_ilimitado',
+        'activo'
     ];
 
-    // Relación con Entrada
-    public function entradas()
+    protected $casts = [
+        'precio' => 'decimal:2',
+        'cantidad_disponible' => 'integer',
+        'entradas_vendidas' => 'integer',
+        'es_ilimitado' => 'boolean',
+        'activo' => 'boolean'
+    ];
+
+    protected $appends = ['disponibilidad'];
+
+    public function evento()
     {
-        return $this->hasMany(Entrada::class, 'tipo_entrada_id', 'idTipoEntrada');
+        return $this->belongsTo(Evento::class, 'idEvento', 'idEvento');
+    }
+
+    // Verificar si hay entradas disponibles
+    public function hayDisponibilidad(int $cantidad = 1): bool
+    {
+        if ($this->es_ilimitado) {
+            return true;
+        }
+
+        return $this->cantidad_disponible >= ($this->entradas_vendidas + $cantidad);
+    }
+
+    // Obtener número de entradas disponibles
+    public function getDisponibilidadAttribute()
+    {
+        if ($this->es_ilimitado) {
+            return 'Ilimitado';
+        }
+
+        return $this->cantidad_disponible - $this->entradas_vendidas;
+    }
+
+    // Procesar venta de entradas
+    public function venderEntradas(int $cantidad = 1): bool
+    {
+        if (!$this->hayDisponibilidad($cantidad)) {
+            return false;
+        }
+
+        $this->entradas_vendidas += $cantidad;
+        return $this->save();
+    }
+
+    // Scope para tipos de entrada activos
+    public function scopeActivos(Builder $query)
+    {
+        return $query->where('activo', true);
+    }
+
+    // Scope para tipos de entrada con disponibilidad
+    public function scopeConDisponibilidad(Builder $query)
+    {
+        return $query->where(function($q) {
+            $q->where('es_ilimitado', true)
+              ->orWhereRaw('cantidad_disponible > entradas_vendidas');
+        })->where('activo', true);
     }
 } 
