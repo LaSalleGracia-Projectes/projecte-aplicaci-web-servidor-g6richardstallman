@@ -13,6 +13,7 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Str;
 use App\Mail\RegistroConfirmacion;
 use Illuminate\Support\Facades\Mail;
+use App\Mail\ActualizacionPassword;
 
 class AuthController extends Controller
 {
@@ -263,9 +264,12 @@ class AuthController extends Controller
             $user->password = Hash::make($newPassword);
             $user->save();
 
+            // Enviar correo electrónico con la nueva contraseña
+            Mail::to($user->email)->send(new ActualizacionPassword($user, $newPassword));
+
             // Devolver la nueva contraseña
             return response()->json([
-                'message' => 'Contraseña restablecida con éxito',
+                'message' => 'Contraseña restablecida con éxito. Se ha enviado un correo electrónico con los detalles.',
                 'password' => $newPassword
             ]);
 
