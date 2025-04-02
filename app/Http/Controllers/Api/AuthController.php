@@ -281,4 +281,58 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function getProfile(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Usuario no autenticado',
+                    'status' => 'error'
+                ], 401);
+            }
+
+            $profileData = [
+                'id' => $user->idUser,
+                'nombre' => $user->nombre,
+                'apellido1' => $user->apellido1,
+                'apellido2' => $user->apellido2,
+                'email' => $user->email,
+                'role' => $user->role,
+                'tipo_usuario' => $user->role === 'participante' ? 'Participante' : 'Organizador'
+            ];
+
+            // Añadir datos específicos según el rol
+            if ($user->role === 'participante') {
+                $participante = Participante::where('idUser', $user->idUser)->first();
+                if ($participante) {
+                    $profileData['dni'] = $participante->dni;
+                    $profileData['telefono'] = $participante->telefono;
+                }
+            } elseif ($user->role === 'organizador') {
+                $organizador = Organizador::where('user_id', $user->idUser)->first();
+                if ($organizador) {
+                    $profileData['nombre_organizacion'] = $organizador->nombre_organizacion;
+                    $profileData['telefono_contacto'] = $organizador->telefono_contacto;
+                }
+            }
+
+            return response()->json([
+                'message' => 'Perfil recuperado con éxito',
+                'data' => $profileData,
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener perfil: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al obtener el perfil',
+                'message' => 'No se pudo recuperar la información del perfil',
+                'status' => 'error'
+            ], 500);
+        }
+    }
 } 
