@@ -22,6 +22,6 @@ class ActualizacionPassword extends Mailable
     public function build()
     {
         return $this->view('emails.actualizacion-password')
-                    ->subject('Tu contraseña ha sido actualizada - Evenflix');
+                    ->subject('Tu contraseña ha sido actualizada - Eventflix');
     }
 } 
