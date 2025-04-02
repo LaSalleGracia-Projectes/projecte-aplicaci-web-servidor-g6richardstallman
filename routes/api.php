@@ -24,6 +24,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Perfil del usuario
     Route::get('/profile', [AuthController::class, 'getProfile']);
     
+    // Cambiar contraseña
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
+    
     // Logout
     Route::post('/logout', [AuthController::class, 'logout']);
     
