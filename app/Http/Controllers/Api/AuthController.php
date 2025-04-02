@@ -335,4 +335,77 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function changePassword(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Usuario no autenticado',
+                    'status' => 'error'
+                ], 401);
+            }
+
+            // Validar los datos de entrada
+            $validated = $request->validate([
+                'current_password' => 'required|string',
+                'new_password' => 'required|string|min:6|different:current_password',
+                'confirm_password' => 'required|string|same:new_password'
+            ], [
+                'current_password.required' => 'La contraseña actual es obligatoria',
+                'new_password.required' => 'La nueva contraseña es obligatoria',
+                'new_password.min' => 'La nueva contraseña debe tener al menos 6 caracteres',
+                'new_password.different' => 'La nueva contraseña debe ser diferente a la actual',
+                'confirm_password.required' => 'La confirmación de contraseña es obligatoria',
+                'confirm_password.same' => 'Las contraseñas no coinciden'
+            ]);
+
+            // Verificar que la contraseña actual es correcta
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                return response()->json([
+                    'error' => 'Contraseña incorrecta',
+                    'message' => 'La contraseña actual no es correcta',
+                    'status' => 'error'
+                ], 400);
+            }
+
+            // Verificar que la nueva contraseña es diferente a la actual
+            if ($validated['current_password'] === $validated['new_password']) {
+                return response()->json([
+                    'error' => 'Contraseña inválida',
+                    'message' => 'La nueva contraseña debe ser diferente a la actual',
+                    'status' => 'error'
+                ], 400);
+            }
+
+            // Actualizar la contraseña
+            $user->password = Hash::make($validated['new_password']);
+            $user->save();
+
+            // Opcional: revocar todos los tokens para forzar un nuevo login
+            $user->tokens()->delete();
+
+            return response()->json([
+                'message' => 'Contraseña actualizada con éxito',
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors(),
+                'status' => 'error'
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar contraseña: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al cambiar la contraseña',
+                'message' => 'No se pudo actualizar la contraseña',
+                'status' => 'error'
+            ], 500);
+        }
+    }
 } 
