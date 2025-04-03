@@ -52,6 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas para venta de entradas
     Route::post('/compras', [VentaEntradaController::class, 'comprar']);
     Route::get('/compras', [VentaEntradaController::class, 'listarCompras']);
+    
+    // Nueva ruta para ver detalle de una compra específica
+    Route::get('/compras/{id}', [VentaEntradaController::class, 'detalleCompra']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
