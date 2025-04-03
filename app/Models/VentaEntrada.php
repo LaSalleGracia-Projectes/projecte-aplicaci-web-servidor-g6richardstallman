@@ -16,14 +16,16 @@ class VentaEntrada extends Model
 
     protected $fillable = [
         'estado_pago',
-        'subtotal',
         'impuestos',
-        'descuento',
-        'monto_total',
         'idEntrada',
         'idPago',
-        'idParticipante'
+        'idParticipante',
+        'precio',
+        'fecha_compra'
     ];
+
+    // Constante para el IVA (21%)
+    const IVA = 0.21;
 
     public function entrada(): BelongsTo
     {
@@ -38,5 +40,15 @@ class VentaEntrada extends Model
     public function participante(): BelongsTo
     {
         return $this->belongsTo(Participante::class, 'idParticipante');
+    }
+    
+    // Método para calcular y establecer los valores automáticamente
+    public function setPrecioAndCalculateValues($precio)
+    {
+        $this->precio = $precio;
+        // Calculamos directamente los impuestos (21% del precio)
+        $this->impuestos = round($precio * self::IVA, 2);
+        
+        return $this;
     }
 }
