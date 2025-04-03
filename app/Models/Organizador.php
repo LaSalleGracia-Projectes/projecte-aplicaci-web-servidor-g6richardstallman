@@ -21,6 +21,8 @@ class Organizador extends Model
     protected $fillable = [
         'nombre_organizacion',
         'telefono_contacto',
+        'direccion_fiscal',
+        'cif',
         'user_id'
     ];
 
