@@ -22,7 +22,8 @@ class DatabaseSeeder extends Seeder
             ValoracionSeeder::class,
             VentaEntradaSeeder::class,
             FavoritoSeeder::class,
-            TipoEntradaSeeder::class
+            TipoEntradaSeeder::class,
+            OrganizadorFavoritoSeeder::class
         ]);
     }
 }

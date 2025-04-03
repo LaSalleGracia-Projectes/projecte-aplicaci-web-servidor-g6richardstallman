@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\TipoEntradaController;
 use App\Http\Controllers\Api\VentaEntradaController;
+use App\Http\Controllers\Api\OrganizadorFavoritoController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -61,6 +62,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Nueva ruta para eliminar cuenta
     Route::delete('/account', [AuthController::class, 'deleteAccount']);
+
+    // Rutas para organizadores favoritos
+    Route::get('/organizadores-favoritos', [OrganizadorFavoritoController::class, 'getOrganizadoresFavoritos']);
+    Route::post('/organizadores-favoritos', [OrganizadorFavoritoController::class, 'addOrganizadorFavorito']);
+    Route::delete('/organizadores-favoritos/{idOrganizador}', [OrganizadorFavoritoController::class, 'removeOrganizadorFavorito']);
+    Route::get('/organizadores-favoritos/check/{idOrganizador}', [OrganizadorFavoritoController::class, 'checkOrganizadorFavorito']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
