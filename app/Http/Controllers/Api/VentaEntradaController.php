@@ -15,6 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Mail\CompraConfirmada;
+use Illuminate\Support\Facades\Mail;
 
 class VentaEntradaController extends Controller
 {
@@ -251,6 +253,21 @@ class VentaEntradaController extends Controller
                         ],
                         'metodo_pago' => $factura->metodo_pago
                     ];
+                }
+                
+                // Enviar correo de confirmación para cada entrada comprada
+                foreach ($entradasCompradas as $entrada) {
+                    $ventaEntrada = VentaEntrada::with(['entrada.evento', 'participante.user'])
+                        ->find($entrada['idVentaEntrada']);
+                    
+                    if ($ventaEntrada) {
+                        try {
+                            Mail::to($emailComprador)->send(new CompraConfirmada($ventaEntrada));
+                        } catch (\Exception $e) {
+                            // Loguear el error pero continuar con el proceso
+                            Log::error('Error al enviar correo de confirmación: ' . $e->getMessage());
+                        }
+                    }
                 }
                 
                 return response()->json($respuesta, 201);
