@@ -55,4 +55,15 @@ class Participante extends Model
     {
         return Evento::whereIn('idEvento', $this->favoritos()->pluck('idEvento'));
     }
+
+    // Añadir una relación muchos a muchos con Organizador para los favoritos
+    public function organizadoresFavoritos()
+    {
+        return $this->belongsToMany(
+            Organizador::class, 
+            'organizador_favorito', 
+            'idParticipante', 
+            'idOrganizador'
+        )->withTimestamps();
+    }
 }
