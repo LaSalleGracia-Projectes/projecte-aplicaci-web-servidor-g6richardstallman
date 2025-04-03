@@ -55,6 +55,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Nueva ruta para ver detalle de una compra específica
     Route::get('/compras/{id}', [VentaEntradaController::class, 'detalleCompra']);
+    
+    // Nueva ruta para generar factura
+    Route::get('/compras/{id}/factura', [VentaEntradaController::class, 'generarFactura']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento

@@ -548,4 +548,167 @@ class VentaEntradaController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Generar factura para una compra específica
+     *
+     * @param  int  $id
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function generarFactura($id, Request $request)
+    {
+        try {
+            // Obtener el usuario autenticado
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Debe iniciar sesión para generar una factura',
+                    'status' => 'error'
+                ], 401);
+            }
+            
+            // Obtener el participante
+            $participante = Participante::where('idUser', $user->idUser)->first();
+            if (!$participante) {
+                return response()->json([
+                    'error' => 'Perfil no encontrado',
+                    'message' => 'No se encontró el perfil de participante',
+                    'status' => 'error'
+                ], 404);
+            }
+            
+            // Buscar la venta por ID
+            $ventaEntrada = VentaEntrada::where('idVentaEntrada', $id)
+                ->with(['entrada.evento', 'pago'])
+                ->first();
+                
+            if (!$ventaEntrada) {
+                return response()->json([
+                    'error' => 'Compra no encontrada',
+                    'message' => 'No se encontró la compra solicitada',
+                    'status' => 'error'
+                ], 404);
+            }
+            
+            // Verificar que la compra pertenece al usuario autenticado
+            if ($ventaEntrada->idParticipante != $participante->idParticipante) {
+                return response()->json([
+                    'error' => 'Acceso denegado',
+                    'message' => 'No tiene permiso para generar la factura de esta compra',
+                    'status' => 'error'
+                ], 403);
+            }
+            
+            // Verificar si ya existe una factura para esta compra
+            $facturaExistente = Factura::where('idEntrada', $ventaEntrada->idEntrada)
+                ->where('idParticipante', $participante->idParticipante)
+                ->first();
+            
+            if ($facturaExistente) {
+                // Si ya existe una factura, devolverla
+                $facturaData = [
+                    'id' => $facturaExistente->idFactura,
+                    'numero' => $facturaExistente->numero_factura,
+                    'fecha_emision' => $facturaExistente->fecha_emision instanceof \Carbon\Carbon 
+                        ? $facturaExistente->fecha_emision->format('Y-m-d') 
+                        : $facturaExistente->fecha_emision,
+                    'fecha_vencimiento' => $facturaExistente->fecha_vencimiento instanceof \Carbon\Carbon 
+                        ? $facturaExistente->fecha_vencimiento->format('Y-m-d') 
+                        : $facturaExistente->fecha_vencimiento,
+                    'subtotal' => $facturaExistente->subtotal,
+                    'impuestos' => $facturaExistente->impostos,
+                    'descuento' => $facturaExistente->descuento,
+                    'total' => $facturaExistente->montoTotal,
+                    'estado' => $facturaExistente->estado,
+                    'datos_fiscales' => [
+                        'nombre' => $facturaExistente->nombre_fiscal,
+                        'nif' => $facturaExistente->nif,
+                        'direccion' => $facturaExistente->direccion_fiscal
+                    ],
+                    'metodo_pago' => $facturaExistente->metodo_pago,
+                    'notas' => $facturaExistente->notas
+                ];
+                
+                return response()->json([
+                    'message' => 'Factura ya existente',
+                    'factura' => $facturaData,
+                    'status' => 'success'
+                ]);
+            }
+            
+            // Crear o buscar registro de pago
+            $pago = Pago::firstOrCreate(
+                ['email' => $user->email],
+                [
+                    'nombre' => $user->nombre . ' ' . $user->apellido1,
+                    'contacto' => $user->nombre . ' ' . $user->apellido1,
+                    'telefono' => $participante->telefono ?? '',
+                    'email' => $user->email
+                ]
+            );
+            
+            // Calcular valores para la factura
+            $precio = $ventaEntrada->precio;
+            $impuestos = $ventaEntrada->impuestos;
+            $subtotal = round($precio - $impuestos, 2);
+            
+            // Crear factura
+            $factura = new Factura();
+            $factura->numero_factura = Factura::generarNumeroFactura();
+            $factura->fecha_emision = now()->format('Y-m-d');
+            $factura->fecha_vencimiento = now()->addDays(30)->format('Y-m-d');
+            $factura->subtotal = $subtotal;
+            $factura->impostos = $impuestos;
+            $factura->descuento = 0; // Sin descuento
+            $factura->montoTotal = $precio;
+            $factura->estado = 'emitida';
+            
+            // Usar datos del usuario/participante para la facturación
+            $factura->nombre_fiscal = $user->nombre . ' ' . $user->apellido1;
+            $factura->nif = $participante->dni ?? 'No especificado';
+            $factura->direccion_fiscal = $participante->direccion ?? 'No especificada';
+            $factura->metodo_pago = $ventaEntrada->pago->metodo_pago ?? 'tarjeta';
+            $factura->notas = "Factura por compra de entrada para el evento: {$ventaEntrada->entrada->evento->nombreEvento}";
+            $factura->idParticipante = $participante->idParticipante;
+            $factura->idEntrada = $ventaEntrada->idEntrada;
+            $factura->idPago = $pago->idPago;
+            $factura->save();
+            
+            // Preparar respuesta con datos de la factura
+            $facturaData = [
+                'id' => $factura->idFactura,
+                'numero' => $factura->numero_factura,
+                'fecha_emision' => $factura->fecha_emision,
+                'fecha_vencimiento' => $factura->fecha_vencimiento,
+                'subtotal' => $factura->subtotal,
+                'impuestos' => $factura->impostos,
+                'descuento' => $factura->descuento,
+                'total' => $factura->montoTotal,
+                'estado' => $factura->estado,
+                'datos_fiscales' => [
+                    'nombre' => $factura->nombre_fiscal,
+                    'nif' => $factura->nif,
+                    'direccion' => $factura->direccion_fiscal
+                ],
+                'metodo_pago' => $factura->metodo_pago,
+                'notas' => $factura->notas
+            ];
+            
+            return response()->json([
+                'message' => 'Factura generada con éxito',
+                'factura' => $facturaData,
+                'status' => 'success'
+            ], 201);
+            
+        } catch (\Exception $e) {
+            Log::error('Error al generar factura: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'error' => 'Error al generar factura',
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
 } 
