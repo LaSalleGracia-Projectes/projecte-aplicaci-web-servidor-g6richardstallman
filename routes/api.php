@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\EventoController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\TipoEntradaController;
+use App\Http\Controllers\Api\VentaEntradaController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -47,6 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/eventos/{idEvento}/tipos-entrada', [TipoEntradaController::class, 'store']);
     Route::put('/eventos/{idEvento}/tipos-entrada/{idTipoEntrada}', [TipoEntradaController::class, 'update']);
     Route::delete('/eventos/{idEvento}/tipos-entrada/{idTipoEntrada}', [TipoEntradaController::class, 'destroy']);
+
+    // Rutas para venta de entradas
+    Route::post('/compras', [VentaEntradaController::class, 'comprar']);
+    Route::get('/compras', [VentaEntradaController::class, 'listarCompras']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento

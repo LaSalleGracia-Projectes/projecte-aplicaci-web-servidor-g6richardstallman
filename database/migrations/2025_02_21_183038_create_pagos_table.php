@@ -11,8 +11,8 @@ return new class extends Migration {
             $table->bigIncrements('idPago'); 
             $table->string('nombre');
             $table->string('contacto');
-            $table->string('telefono');
-            $table->string('email')->unique();
+            $table->string('telefono')->nullable();
+            $table->string('email');
             $table->timestamps();
             $table->softDeletes();
         });
