@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->id('idParticipante');
             $table->string('dni')->unique();
             $table->string('telefono');
+            $table->string('direccion')->nullable();
             $table->unsignedBigInteger('idUser');
             $table->timestamps();
 
