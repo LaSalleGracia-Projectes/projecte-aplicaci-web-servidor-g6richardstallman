@@ -597,4 +597,138 @@ class AuthController extends Controller
             $organizador->delete();
         }
     }
-} 
+
+    /**
+     * Actualizar el perfil del usuario autenticado
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateProfile(Request $request)
+    {
+        try {
+            // Obtener el usuario autenticado
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Usuario no autenticado',
+                    'status' => 'error'
+                ], 401);
+            }
+
+            // Validar los datos básicos del usuario
+            $validated = $request->validate([
+                'nombre' => 'sometimes|string|max:255',
+                'apellido1' => 'sometimes|string|max:255',
+                'apellido2' => 'sometimes|nullable|string|max:255',
+                'email' => 'sometimes|email|max:255|unique:users,email,' . $user->idUser . ',idUser',
+            ]);
+
+            // Actualizar datos básicos del usuario
+            if (isset($validated['nombre'])) {
+                $user->nombre = $validated['nombre'];
+            }
+            if (isset($validated['apellido1'])) {
+                $user->apellido1 = $validated['apellido1'];
+            }
+            if (isset($validated['apellido2'])) {
+                $user->apellido2 = $validated['apellido2'];
+            }
+            if (isset($validated['email'])) {
+                $user->email = $validated['email'];
+            }
+            $user->save();
+
+            // Actualizar datos específicos según el rol
+            if ($user->role === 'participante') {
+                $participante = Participante::where('idUser', $user->idUser)->first();
+                if ($participante) {
+                    if ($request->has('dni')) {
+                        $participante->dni = $request->input('dni');
+                    }
+                    if ($request->has('telefono')) {
+                        $participante->telefono = $request->input('telefono');
+                    }
+                    if ($request->has('direccion')) {
+                        $participante->direccion = $request->input('direccion');
+                    }
+                    $participante->save();
+                }
+            } elseif ($user->role === 'organizador') {
+                $organizador = Organizador::where('user_id', $user->idUser)->first();
+                if ($organizador) {
+                    if ($request->has('nombre_organizacion')) {
+                        $organizador->nombre_organizacion = $request->input('nombre_organizacion');
+                    }
+                    if ($request->has('telefono_contacto')) {
+                        $organizador->telefono_contacto = $request->input('telefono_contacto');
+                    }
+                    if ($request->has('direccion_fiscal')) {
+                        $organizador->direccion_fiscal = $request->input('direccion_fiscal');
+                    }
+                    if ($request->has('cif')) {
+                        $organizador->cif = $request->input('cif');
+                    }
+                    $organizador->save();
+                }
+            }
+
+            // Obtener perfil actualizado
+            $profileData = [
+                'id' => $user->idUser,
+                'nombre' => $user->nombre,
+                'apellido1' => $user->apellido1,
+                'apellido2' => $user->apellido2,
+                'email' => $user->email,
+                'role' => $user->role
+            ];
+
+            // Añadir datos específicos según el rol
+            if ($user->role === 'participante') {
+                $participante = Participante::where('idUser', $user->idUser)->first();
+                if ($participante) {
+                    $profileData['dni'] = $participante->dni;
+                    $profileData['telefono'] = $participante->telefono;
+                    if (isset($participante->direccion)) {
+                        $profileData['direccion'] = $participante->direccion;
+                    }
+                }
+            } elseif ($user->role === 'organizador') {
+                $organizador = Organizador::where('user_id', $user->idUser)->first();
+                if ($organizador) {
+                    $profileData['nombre_organizacion'] = $organizador->nombre_organizacion;
+                    $profileData['telefono_contacto'] = $organizador->telefono_contacto;
+                    if (isset($organizador->direccion_fiscal)) {
+                        $profileData['direccion_fiscal'] = $organizador->direccion_fiscal;
+                    }
+                    if (isset($organizador->cif)) {
+                        $profileData['cif'] = $organizador->cif;
+                    }
+                }
+            }
+
+            return response()->json([
+                'message' => 'Perfil actualizado con éxito',
+                'data' => $profileData,
+                'status' => 'success'
+            ], 200);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors(),
+                'status' => 'error'
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar perfil: ' . $e->getMessage());
+            
+            return response()->json([
+                'error' => 'Error al actualizar el perfil',
+                'message' => 'No se pudo actualizar la información del perfil',
+                'status' => 'error'
+            ], 500);
+        }
+    }
+}

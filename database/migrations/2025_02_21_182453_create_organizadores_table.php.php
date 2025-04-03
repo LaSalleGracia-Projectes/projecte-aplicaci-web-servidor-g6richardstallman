@@ -12,6 +12,8 @@ return new class extends Migration
             $table->id('idOrganizador');
             $table->string('nombre_organizacion');
             $table->string('telefono_contacto');
+            $table->string('direccion_fiscal')->nullable();
+            $table->string('cif')->nullable();
             $table->unsignedBigInteger('user_id');
             $table->timestamps();
 
