@@ -14,6 +14,14 @@ use Illuminate\Support\Str;
 use App\Mail\RegistroConfirmacion;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ActualizacionPassword;
+use Illuminate\Support\Facades\DB;
+use App\Models\VentaEntrada;
+use App\Models\Factura;
+use App\Models\Entrada;
+use App\Models\Favorito;
+use App\Models\Valoracion;
+use App\Models\Evento;
+use App\Models\TipoEntrada;
 
 class AuthController extends Controller
 {
@@ -406,6 +414,187 @@ class AuthController extends Controller
                 'message' => 'No se pudo actualizar la contraseña',
                 'status' => 'error'
             ], 500);
+        }
+    }
+
+    /**
+     * Eliminar la cuenta del usuario autenticado
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteAccount(Request $request)
+    {
+        try {
+            // Obtener el usuario autenticado
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Usuario no autenticado',
+                    'status' => 'error'
+                ], 401);
+            }
+
+            // Validar la contraseña para confirmar la eliminación
+            $validated = $request->validate([
+                'password' => 'required|string',
+                'confirm_deletion' => 'required|boolean|accepted'
+            ], [
+                'password.required' => 'La contraseña es obligatoria para confirmar la eliminación',
+                'confirm_deletion.required' => 'Debe confirmar que desea eliminar la cuenta',
+                'confirm_deletion.accepted' => 'Debe confirmar que desea eliminar la cuenta'
+            ]);
+
+            // Verificar la contraseña
+            if (!Hash::check($validated['password'], $user->password)) {
+                return response()->json([
+                    'error' => 'Contraseña incorrecta',
+                    'message' => 'La contraseña proporcionada no es correcta',
+                    'status' => 'error'
+                ], 400);
+            }
+
+            // Iniciar transacción para garantizar que todo se elimine correctamente
+            DB::beginTransaction();
+            
+            try {
+                // Eliminar datos según el rol del usuario
+                if ($user->role === 'participante') {
+                    $this->deleteParticipante($user);
+                } else if ($user->role === 'organizador') {
+                    $this->deleteOrganizador($user);
+                }
+                
+                // Eliminar tokens de acceso
+                $user->tokens()->delete();
+                
+                // Eliminar el usuario
+                $user->delete();
+                
+                DB::commit();
+                
+                return response()->json([
+                    'message' => 'Cuenta eliminada correctamente',
+                    'status' => 'success'
+                ], 200);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors(),
+                'status' => 'error'
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar cuenta: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al eliminar la cuenta',
+                'message' => 'No se pudo eliminar la cuenta correctamente: ' . $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Elimina los datos relacionados con un participante
+     *
+     * @param  \App\Models\User  $user
+     * @return void
+     */
+    private function deleteParticipante(User $user)
+    {
+        // Buscar el participante asociado
+        $participante = Participante::where('idUser', $user->idUser)->first();
+        
+        if ($participante) {
+            // Verificar si hay compras asociadas
+            $compras = VentaEntrada::where('idParticipante', $participante->idParticipante)->get();
+            
+            // Para cada compra, eliminar la factura asociada si existe
+            foreach ($compras as $compra) {
+                Factura::where('idEntrada', $compra->idEntrada)
+                      ->where('idParticipante', $participante->idParticipante)
+                      ->delete();
+                
+                // Opcional: marcar la entrada como disponible nuevamente
+                // Solo si el evento no ha pasado
+                $entrada = Entrada::find($compra->idEntrada);
+                if ($entrada && $entrada->evento->fechaEvento > now()) {
+                    // Aquí la lógica para liberar la entrada
+                }
+                
+                // Eliminar la compra
+                $compra->delete();
+            }
+            
+            // Eliminar favoritos si existen
+            Favorito::where('idParticipante', $participante->idParticipante)->delete();
+            
+            // Eliminar valoraciones si existen
+            Valoracion::where('idParticipante', $participante->idParticipante)->delete();
+            
+            // Finalmente eliminar el participante
+            $participante->delete();
+        }
+    }
+
+    /**
+     * Elimina los datos relacionados con un organizador
+     *
+     * @param  \App\Models\User  $user
+     * @return void
+     */
+    private function deleteOrganizador(User $user)
+    {
+        // Buscar el organizador asociado
+        $organizador = Organizador::where('user_id', $user->idUser)->first();
+        
+        if ($organizador) {
+            // Verificar si hay eventos asociados
+            $eventos = Evento::where('idOrganizador', $organizador->idOrganizador)->get();
+            
+            // Para cada evento, verificar si se puede eliminar
+            foreach ($eventos as $evento) {
+                // Si el evento ya pasó o no tiene entradas vendidas, eliminar
+                if ($evento->fechaEvento < now() || $evento->entradas_vendidas == 0) {
+                    // Eliminar tipos de entrada asociados
+                    TipoEntrada::where('idEvento', $evento->idEvento)->delete();
+                    
+                    // Eliminar entradas asociadas
+                    $entradas = Entrada::where('idEvento', $evento->idEvento)->get();
+                    foreach ($entradas as $entrada) {
+                        // Eliminar facturas asociadas a la entrada
+                        Factura::where('idEntrada', $entrada->idEntrada)->delete();
+                        
+                        // Eliminar ventas asociadas a la entrada
+                        VentaEntrada::where('idEntrada', $entrada->idEntrada)->delete();
+                        
+                        // Eliminar la entrada
+                        $entrada->delete();
+                    }
+                    
+                    // Eliminar valoraciones del evento
+                    Valoracion::where('idEvento', $evento->idEvento)->delete();
+                    
+                    // Eliminar favoritos del evento
+                    Favorito::where('idEvento', $evento->idEvento)->delete();
+                    
+                    // Eliminar el evento
+                    $evento->delete();
+                } else {
+                    // Si hay entradas vendidas para eventos futuros, lanzar error
+                    throw new \Exception('No se puede eliminar la cuenta porque hay eventos con entradas vendidas');
+                }
+            }
+            
+            // Finalmente eliminar el organizador
+            $organizador->delete();
         }
     }
 } 

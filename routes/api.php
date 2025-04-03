@@ -58,6 +58,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Nueva ruta para generar factura
     Route::get('/compras/{id}/factura', [VentaEntradaController::class, 'generarFactura']);
+
+    // Nueva ruta para eliminar cuenta
+    Route::delete('/account', [AuthController::class, 'deleteAccount']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
