@@ -9,6 +9,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Factura;
 
 class CompraConfirmada extends Mailable
 {
@@ -51,7 +53,17 @@ class CompraConfirmada extends Mailable
      */
     public function build()
     {
-        return $this->subject('Confirmación de compra: ' . $this->evento->nombreEvento)
-                    ->view('emails.compra-confirmada');
+        $mail = $this->subject('Confirmación de compra: ' . $this->evento->nombreEvento)
+                     ->view('emails.compra-confirmada');
+        
+        // Si existe factura, adjuntar el PDF
+        if ($this->factura) {
+            $pdf = PDF::loadView('pdfs.factura', ['factura' => $this->factura]);
+            $mail->attachData($pdf->output(), 'factura-' . $this->factura->numero_factura . '.pdf', [
+                'mime' => 'application/pdf',
+            ]);
+        }
+        
+        return $mail;
     }
 } 
