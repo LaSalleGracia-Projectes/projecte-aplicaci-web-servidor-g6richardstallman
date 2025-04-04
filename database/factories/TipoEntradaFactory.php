@@ -46,6 +46,9 @@ class TipoEntradaFactory extends Factory
     {
         return $this->state(function (array $attributes) {
             return [
+                'nombre' => 'Streaming Online',
+                'precio' => $this->faker->randomFloat(2, 5, 15),
+                'descripcion' => 'Acceso ilimitado para ver el evento en streaming',
                 'es_ilimitado' => true,
                 'cantidad_disponible' => null
             ];
@@ -58,10 +61,77 @@ class TipoEntradaFactory extends Factory
         return $this->state(function (array $attributes) {
             $cantidad = $this->faker->numberBetween(50, 1000);
             return [
+                'nombre' => 'Early Bird',
+                'precio' => $this->faker->randomFloat(2, 10, 30),
+                'descripcion' => 'Entradas anticipadas a precio reducido (AGOTADAS)',
                 'es_ilimitado' => false,
                 'cantidad_disponible' => $cantidad,
                 'entradas_vendidas' => $cantidad
             ];
         });
+    }
+    
+    // Estado para entradas General
+    public function general()
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'nombre' => 'General',
+                'precio' => $this->faker->randomFloat(2, 15, 50),
+                'descripcion' => 'Entrada estándar para el evento',
+                'es_ilimitado' => false,
+                'cantidad_disponible' => $this->faker->numberBetween(100, 500)
+            ];
+        });
+    }
+
+    // Estado para entradas Premium
+    public function premium()
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'nombre' => 'Premium',
+                'precio' => $this->faker->randomFloat(2, 60, 120),
+                'descripcion' => 'Entrada premium con acceso a zona preferente',
+                'es_ilimitado' => false,
+                'cantidad_disponible' => $this->faker->numberBetween(50, 200)
+            ];
+        });
+    }
+
+    /**
+     * Crear conjunto completo de tipos de entrada para un evento
+     * 
+     * @param int $idEvento ID del evento
+     * @return array Array de TipoEntrada creados
+     */
+    public function crearTiposParaEvento($idEvento)
+    {
+        $tipos = [];
+        
+        // Número de tipos de entrada: entre 2 y 4
+        $tiposCount = rand(2, 4);
+        
+        // Siempre crear entrada General
+        $tipos[] = $this->general()->create(['idEvento' => $idEvento]);
+        
+        // Siempre crear entrada VIP
+        $tipos[] = $this->vip()->create(['idEvento' => $idEvento]);
+        
+        if ($tiposCount >= 3) {
+            // Crear entrada Premium
+            $tipos[] = $this->premium()->create(['idEvento' => $idEvento]);
+        }
+        
+        if ($tiposCount >= 4) {
+            // 50% posibilidad de crear entrada online o agotada
+            if ($this->faker->boolean(50)) {
+                $tipos[] = $this->online()->create(['idEvento' => $idEvento]);
+            } else {
+                $tipos[] = $this->agotado()->create(['idEvento' => $idEvento]);
+            }
+        }
+        
+        return $tipos;
     }
 } 
