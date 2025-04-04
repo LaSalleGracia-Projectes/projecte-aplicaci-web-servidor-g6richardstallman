@@ -34,6 +34,10 @@ class TipoEntrada extends Model
 
     protected $appends = ['disponibilidad'];
 
+    public function entradas()
+{
+    return $this->hasMany(Entrada::class, 'idTipoEntrada', 'idTipoEntrada');
+}
     public function evento()
     {
         return $this->belongsTo(Evento::class, 'idEvento', 'idEvento');

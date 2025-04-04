@@ -43,62 +43,61 @@ class Factura extends Model
      * @return string
      */
     public static function generarNumeroFactura(): string
-    {
-        $anio = Carbon::now()->format('Y');
-        $numeroGenerado = null;
+{
+    $anio = Carbon::now()->format('Y');
+    $numeroGenerado = null;
+    
+    // Usar una transacción para evitar condiciones de carrera
+    DB::beginTransaction();
+    
+    try {
+        // Bloquear la tabla para evitar lecturas sucias
+        $ultimaFactura = DB::table('factura')
+            ->where('numero_factura', 'like', "$anio-%")
+            ->orderBy('numero_factura', 'desc')
+            ->lockForUpdate()
+            ->first();
         
-        // Usar una transacción para evitar condiciones de carrera
-        DB::beginTransaction();
-        
-        try {
-            // Bloquear la tabla para evitar lecturas sucias
-            $ultimaFactura = DB::table('factura')
-                ->where('numero_factura', 'like', "$anio-%")
-                ->orderBy('numero_factura', 'desc')
-                ->lockForUpdate()
-                ->first();
+        if ($ultimaFactura) {
+            // Extraer el número de la última factura y sumar 1
+            $partes = explode('-', $ultimaFactura->numero_factura);
             
-            if ($ultimaFactura) {
-                // Extraer el número de la última factura y sumar 1
-                $partes = explode('-', $ultimaFactura->numero_factura);
-                
-                // Verificar si es puramente numérico
-                if (is_numeric($partes[1])) {
-                    $ultimoNumero = (int) $partes[1];
-                    $nuevoNumero = $ultimoNumero + 1;
-                } else {
-                    // Si contiene caracteres no numéricos, empezar desde 1
-                    $nuevoNumero = 1;
-                }
+            // Verificar si es puramente numérico
+            if (is_numeric($partes[1])) {
+                $ultimoNumero = (int) $partes[1];
+                $nuevoNumero = $ultimoNumero + 1;
             } else {
+                // Si contiene caracteres no numéricos, empezar desde 1
                 $nuevoNumero = 1;
             }
-            
-            // Formatear el nuevo número de factura (puramente numérico)
-            $numeroGenerado = $anio . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
-            
-            // Comprobar si ya existe una factura con ese número
-            $facturaExistente = DB::table('factura')
-                ->where('numero_factura', $numeroGenerado)
-                ->exists();
-            
-            // Si existe, añadir un identificador aleatorio
-            if ($facturaExistente) {
-                $randomId = substr(md5(uniqid(mt_rand(), true)), 0, 4);
-                $numeroGenerado = $anio . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT) . '-' . $randomId;
-            }
-            
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            // Generar un número de factura único con timestamp para evitar errores
-            $timestamp = Carbon::now()->format('YmdHis');
-            $random = substr(md5(uniqid()), 0, 5);
-            $numeroGenerado = $anio . '-' . $timestamp . '-' . $random;
+        } else {
+            $nuevoNumero = 1;
         }
         
-        return $numeroGenerado;
+        // Formatear el nuevo número de factura (puramente numérico)
+        $numeroGenerado = $anio . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
+        
+        // Comprobar si ya existe una factura con ese número
+        $facturaExistente = DB::table('factura')
+            ->where('numero_factura', $numeroGenerado)
+            ->exists();
+        
+        // Si existe, añadir un identificador aleatorio
+        if ($facturaExistente) {
+            $randomId = substr(md5(uniqid(mt_rand(), true)), 0, 4);
+            $numeroGenerado = $anio . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT) . '-' . $randomId;
+        }
+        
+        DB::commit();
+        return $numeroGenerado; // Retornar aquí si todo salió bien
+    } catch (\Exception $e) {
+        DB::rollBack();
+        // Generar un número de factura único con timestamp para evitar errores
+        $timestamp = Carbon::now()->format('YmdHis');
+        $random = substr(md5(uniqid()), 0, 5);
+        return $anio . '-' . $timestamp . '-' . $random;
     }
+}
 
     public function participante(): BelongsTo
     {

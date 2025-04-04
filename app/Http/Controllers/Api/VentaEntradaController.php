@@ -133,6 +133,19 @@ class VentaEntradaController extends Controller
                         $entrada->fecha_venta = Carbon::now();
                         $entrada->nombre_persona = $nombreComprador;
                         $entrada->idEvento = $validated['idEvento'];
+                        $entrada->idTipoEntrada = $entradaData['idTipoEntrada']; 
+                        $entrada->estado = 'disponible'; 
+                        $entrada->precio = $tipoEntrada->precio;
+                        
+                        // Generar un código único
+                        $codigo = 'ENT-' . $validated['idEvento'] . '-' . $entradaData['idTipoEntrada'] . '-' . uniqid(microtime(), true);
+                        
+                        // Verificar si existe algún código igual en la base de datos
+                        while (Entrada::where('codigo', $codigo)->exists()) {
+                            $codigo = 'ENT-' . $validated['idEvento'] . '-' . $entradaData['idTipoEntrada'] . '-' . uniqid(microtime(), true);
+                        }
+                        
+                        $entrada->codigo = $codigo;
                         $entrada->save();
                         
                         // Guardar relación entre entrada y participante
@@ -156,20 +169,20 @@ class VentaEntradaController extends Controller
                     }
                 }
                 
-                // Si se solicita factura, usar datos del participante
+                // Crear o buscar registro de pago (esto debe ir FUERA del bloque if)
+                $pago = Pago::firstOrCreate(
+                    ['email' => $emailComprador],
+                    [
+                        'nombre' => $nombreComprador,
+                        'contacto' => $nombreComprador,
+                        'telefono' => $participante->telefono ?? '',
+                        'email' => $emailComprador
+                    ]
+                );
+                
+                // Luego el bloque condicional para la factura
                 $facturaId = null;
                 if (isset($validated['emitir_factura']) && $validated['emitir_factura']) {
-                    // Crear o buscar registro de pago
-                    $pago = Pago::firstOrCreate(
-                        ['email' => $emailComprador],
-                        [
-                            'nombre' => $nombreComprador,
-                            'contacto' => $nombreComprador,
-                            'telefono' => $participante->telefono ?? '',
-                            'email' => $emailComprador
-                        ]
-                    );
-                    
                     // Calcular valores para la factura basados en el total de la compra
                     $subtotalFactura = round($total / (1 + VentaEntrada::IVA), 2);
                     $impuestosFactura = round($total - $subtotalFactura, 2);
@@ -207,9 +220,10 @@ class VentaEntradaController extends Controller
                 }
                 
                 // Actualizar estado de las ventas a 'completado'
-                foreach ($entradasCompradas as $entrada) {
-                    $ventaEntrada = VentaEntrada::find($entrada['idVentaEntrada']);
+                foreach ($entradasCompradas as $entradaData) {
+                    $ventaEntrada = VentaEntrada::find($entradaData['idVentaEntrada']);
                     $ventaEntrada->estado_pago = 'Pagado';
+                    $ventaEntrada->idPago = $pago->idPago;
                     $ventaEntrada->save();
                 }
                 
@@ -297,7 +311,6 @@ class VentaEntradaController extends Controller
     
     /**
      * Simula el procesamiento de un pago
-     * En una implementación real, esto conectaría con una pasarela de pago
      *
      * @param float $total
      * @param array $datosComprador
@@ -313,8 +326,8 @@ class VentaEntradaController extends Controller
             'comprador' => $datosComprador['nombre'] ?? 'Usuario'
         ]);
         
-        // Simulamos un 95% de éxito en los pagos
-        return (mt_rand(1, 100) <= 95);
+        // Simulamos un pago exitoso (100% de éxito para pruebas)
+        return true;
     }
     
     /**
