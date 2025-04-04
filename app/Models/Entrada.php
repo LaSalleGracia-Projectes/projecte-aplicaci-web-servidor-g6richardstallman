@@ -20,8 +20,18 @@ class Entrada extends Model
     protected $fillable = [
         'fecha_venta',
         'nombre_persona',
-        'idEvento'
+        'precio',
+        'codigo',
+        'estado',
+        'idEvento',
+        'idTipoEntrada'
     ];
+
+    // Relación con Tipo de Entrada
+    public function tipoEntrada()
+    {
+        return $this->belongsTo(TipoEntrada::class, 'idTipoEntrada', 'idTipoEntrada');
+    }
 
     // Relación con Evento
     public function evento(): BelongsTo

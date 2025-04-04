@@ -37,7 +37,7 @@ class AuthController extends Controller
         }
 
         try {
-            // Validar datos de entrada
+            // Validar datos de entrada básicos
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'apellido1' => 'required|string|max:255',
@@ -65,6 +65,33 @@ class AuthController extends Controller
                 'nombre_organizacion.required_if' => 'El nombre de la organización es obligatorio para organizadores',
                 'telefono_contacto.required_if' => 'El teléfono de contacto es obligatorio para organizadores'
             ]);
+
+            // Validaciones adicionales según rol
+            if ($validated['role'] === 'participante') {
+                if (!$this->isValidDNI($validated['dni'])) {
+                    return response()->json([
+                        'error' => 'Validación fallida',
+                        'message' => 'El DNI proporcionado no es válido. Debe tener 8 números y 1 letra.',
+                        'status' => 'error'
+                    ], 422);
+                }
+                
+                if (!$this->isValidPhone($validated['telefono'])) {
+                    return response()->json([
+                        'error' => 'Validación fallida',
+                        'message' => 'El teléfono proporcionado no es válido. Debe tener 9 dígitos o formato internacional (+34XXXXXXXXX).',
+                        'status' => 'error'
+                    ], 422);
+                }
+            } elseif ($validated['role'] === 'organizador') {
+                if (!$this->isValidPhone($validated['telefono_contacto'])) {
+                    return response()->json([
+                        'error' => 'Validación fallida',
+                        'message' => 'El teléfono de contacto proporcionado no es válido. Debe tener 9 dígitos o formato internacional (+34XXXXXXXXX).',
+                        'status' => 'error'
+                    ], 422);
+                }
+            }
 
             $user = User::create([
                 'nombre' => $validated['nombre'],
@@ -646,10 +673,26 @@ class AuthController extends Controller
                 $participante = Participante::where('idUser', $user->idUser)->first();
                 if ($participante) {
                     if ($request->has('dni')) {
-                        $participante->dni = $request->input('dni');
+                        $dni = $request->input('dni');
+                        if (!$this->isValidDNI($dni)) {
+                            return response()->json([
+                                'error' => 'Validación fallida',
+                                'message' => 'El DNI proporcionado no es válido. Debe tener 8 números y 1 letra.',
+                                'status' => 'error'
+                            ], 422);
+                        }
+                        $participante->dni = $dni;
                     }
                     if ($request->has('telefono')) {
-                        $participante->telefono = $request->input('telefono');
+                        $telefono = $request->input('telefono');
+                        if (!$this->isValidPhone($telefono)) {
+                            return response()->json([
+                                'error' => 'Validación fallida',
+                                'message' => 'El teléfono proporcionado no es válido. Debe tener 9 dígitos o formato internacional (+34XXXXXXXXX).',
+                                'status' => 'error'
+                            ], 422);
+                        }
+                        $participante->telefono = $telefono;
                     }
                     if ($request->has('direccion')) {
                         $participante->direccion = $request->input('direccion');
@@ -663,7 +706,15 @@ class AuthController extends Controller
                         $organizador->nombre_organizacion = $request->input('nombre_organizacion');
                     }
                     if ($request->has('telefono_contacto')) {
-                        $organizador->telefono_contacto = $request->input('telefono_contacto');
+                        $telefono = $request->input('telefono_contacto');
+                        if (!$this->isValidPhone($telefono)) {
+                            return response()->json([
+                                'error' => 'Validación fallida',
+                                'message' => 'El teléfono de contacto proporcionado no es válido. Debe tener 9 dígitos o formato internacional (+34XXXXXXXXX).',
+                                'status' => 'error'
+                            ], 422);
+                        }
+                        $organizador->telefono_contacto = $telefono;
                     }
                     if ($request->has('direccion_fiscal')) {
                         $organizador->direccion_fiscal = $request->input('direccion_fiscal');
@@ -730,5 +781,55 @@ class AuthController extends Controller
                 'status' => 'error'
             ], 500);
         }
+    }
+
+    /**
+     * Valida un DNI español
+     * 
+     * @param string $dni El DNI a validar
+     * @return bool True si el DNI es válido, false en caso contrario
+     */
+    private function isValidDNI($dni) 
+    {
+        // Verificar que el formato sea correcto (8 números y 1 letra)
+        if (!preg_match('/^[0-9]{8}[A-Z]$/', $dni)) {
+            return false;
+        }
+        
+        // Verificar la letra de control
+        $letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+        $numero = substr($dni, 0, 8);
+        $letra = substr($dni, 8, 1);
+        
+        $indice = $numero % 23;
+        
+        return $letras[$indice] === $letra;
+    }
+
+    /**
+     * Valida un número de teléfono
+     * 
+     * @param string $telefono El número de teléfono a validar
+     * @return bool True si el teléfono es válido, false en caso contrario
+     */
+    private function isValidPhone($telefono) 
+    {
+        // Verificar que sea un string no vacío
+        if (empty($telefono)) {
+            return false;
+        }
+        
+        // Validar formato español (9 dígitos)
+        if (preg_match('/^[0-9]{9}$/', $telefono)) {
+            return true;
+        }
+        
+        // Formato internacional (con +34 al inicio)
+        if (preg_match('/^\+34[0-9]{9}$/', $telefono)) {
+            return true;
+        }
+        
+        // Otros formatos válidos (máximo 15 caracteres según API)
+        return strlen($telefono) <= 15;
     }
 }

@@ -17,10 +17,10 @@ class DatabaseSeeder extends Seeder
             ParticipanteSeeder::class,
             EventoSeeder::class,
             EntradaSeeder::class,
+            VentaEntradaSeeder::class,
             FacturaSeeder::class,
             PagoSeeder::class,
             ValoracionSeeder::class,
-            VentaEntradaSeeder::class,
             FavoritoSeeder::class,
             TipoEntradaSeeder::class,
             OrganizadorFavoritoSeeder::class
