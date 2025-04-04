@@ -269,20 +269,30 @@ class VentaEntradaController extends Controller
                     ];
                 }
                 
-                // Enviar correo de confirmación para cada entrada comprada
-                foreach ($entradasCompradas as $entrada) {
-                    $ventaEntrada = VentaEntrada::with(['entrada.evento', 'participante.user'])
-                        ->find($entrada['idVentaEntrada']);
-                    
-                    if ($ventaEntrada) {
-                        try {
-                            Mail::to($emailComprador)->send(new CompraConfirmada($ventaEntrada));
-                        } catch (\Exception $e) {
-                            // Loguear el error pero continuar con el proceso
-                            Log::error('Error al enviar correo de confirmación: ' . $e->getMessage());
-                        }
-                    }
+                // Obtenemos una de las ventas para enviar el correo
+                $ventaEntrada = VentaEntrada::find($entradasCompradas[0]['idVentaEntrada']);
+
+                // Otros datos para el email
+                $datosEvento = [
+                    'id' => $evento->idEvento,
+                    'nombre' => $evento->nombreEvento,
+                    'fecha' => $evento->fechaEvento,
+                    'hora' => $evento->hora
+                ];
+
+                $datosParticipante = [
+                    'nombre' => $nombreComprador,
+                    'email' => $emailComprador
+                ];
+
+                // Obtener la factura si existe
+                $factura = null;
+                if ($facturaId) {
+                    $factura = Factura::findOrFail($facturaId);
                 }
+
+                // Enviar email con la venta y factura
+                Mail::to($emailComprador)->send(new CompraConfirmada($ventaEntrada, $datosEvento, $datosParticipante, $factura ?? null));
                 
                 return response()->json($respuesta, 201);
                 
