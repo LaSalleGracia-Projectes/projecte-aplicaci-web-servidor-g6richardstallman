@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\TipoEntradaController;
 use App\Http\Controllers\Api\VentaEntradaController;
 use App\Http\Controllers\Api\OrganizadorFavoritoController;
+use App\Http\Controllers\Api\PdfController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -69,6 +70,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/organizadores-favoritos', [OrganizadorFavoritoController::class, 'addOrganizadorFavorito']);
     Route::delete('/organizadores-favoritos/{idOrganizador}', [OrganizadorFavoritoController::class, 'removeOrganizadorFavorito']);
     Route::get('/organizadores-favoritos/check/{idOrganizador}', [OrganizadorFavoritoController::class, 'checkOrganizadorFavorito']);
+
+    // Rutas para generar PDFs
+    Route::get('/factura/{id}/pdf', [PdfController::class, 'generarFacturaPdf']);
+    Route::get('/entrada/{id}/pdf', [PdfController::class, 'generarEntradaPdf']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
