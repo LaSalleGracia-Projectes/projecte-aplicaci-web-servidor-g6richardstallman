@@ -18,12 +18,14 @@ class EventoSeeder extends Seeder
         if (Organizador::count() == 0) {
             $this->call(OrganizadorSeeder::class);
         }
+        
+        $this->command->info('Creando eventos (limitado a 5)...');
 
-        // Crear eventos con datos específicos
+        // Crear solo 5 eventos específicos
         $eventos = [
             [
                 'nombreEvento' => 'Festival de Música Electrónica',
-                'fechaEvento' => '2023-12-15',
+                'fechaEvento' => '2025-12-15',
                 'descripcion' => 'El mejor festival de música electrónica con DJs internacionales.',
                 'hora' => '22:00:00',
                 'ubicacion' => 'Recinto Ferial, Madrid',
@@ -34,7 +36,7 @@ class EventoSeeder extends Seeder
             ],
             [
                 'nombreEvento' => 'Concierto de Rock Clásico',
-                'fechaEvento' => '2023-11-25',
+                'fechaEvento' => '2025-11-25',
                 'descripcion' => 'Revive los mejores éxitos del rock de los 80 y 90.',
                 'hora' => '20:30:00',
                 'ubicacion' => 'Palacio de Deportes, Barcelona',
@@ -45,7 +47,7 @@ class EventoSeeder extends Seeder
             ],
             [
                 'nombreEvento' => 'Obra de Teatro: Romeo y Julieta',
-                'fechaEvento' => '2023-12-05',
+                'fechaEvento' => '2025-12-05',
                 'descripcion' => 'Clásica obra de Shakespeare interpretada por la compañía nacional.',
                 'hora' => '19:00:00',
                 'ubicacion' => 'Teatro Principal, Valencia',
@@ -56,7 +58,7 @@ class EventoSeeder extends Seeder
             ],
             [
                 'nombreEvento' => 'Conferencia de Tecnología',
-                'fechaEvento' => '2024-01-20',
+                'fechaEvento' => '2025-01-20',
                 'descripcion' => 'Expertos en IA y blockchain comparten las últimas tendencias.',
                 'hora' => '10:00:00',
                 'ubicacion' => 'Centro de Convenciones, Sevilla',
@@ -67,7 +69,7 @@ class EventoSeeder extends Seeder
             ],
             [
                 'nombreEvento' => 'Exposición de Arte Contemporáneo',
-                'fechaEvento' => '2024-02-10',
+                'fechaEvento' => '2025-02-10',
                 'descripcion' => 'Obras de los artistas más innovadores del momento.',
                 'hora' => '11:00:00',
                 'ubicacion' => 'Museo de Arte Moderno, Bilbao',
@@ -81,8 +83,13 @@ class EventoSeeder extends Seeder
         foreach ($eventos as $evento) {
             Evento::create($evento);
         }
-
-        // Crear eventos adicionales aleatorios
-        Evento::factory()->count(15)->create();
+        
+        // No crear eventos aleatorios adicionales
+        // Evento::factory()->count(15)->create();
+        
+        // Asegurarse de que todos los eventos tengan tipos de entrada
+        $this->call(TipoEntradaSeeder::class);
+        
+        $this->command->info('Eventos creados con éxito');
     }
 }
