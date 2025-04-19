@@ -60,7 +60,7 @@ class EventoFactory extends Factory
             'descripcion' => $this->faker->paragraph(),
             'hora' => $this->faker->time('H:i:s'),
             'ubicacion' => $this->faker->address(),
-            'imagen' => 'eventos/' . $this->faker->image('public/storage/eventos', 640, 480, null, false),
+            'imagen' => 'eventos/default.jpg',
             'categoria' => $this->faker->randomElement($categorias),
             'lugar' => $this->faker->randomElement($lugares) . ' ' . $this->faker->city,
             'idOrganizador' => $organizador->idOrganizador,

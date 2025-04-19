@@ -591,6 +591,16 @@ class EventoController extends Controller
                 'tipos_entrada.*.activo' => 'sometimes|boolean'
             ]);
 
+            // Mapear campos directamente
+            if (isset($validated['fecha'])) {
+                $evento->fechaEvento = $validated['fecha'];
+            }
+            if (isset($validated['hora'])) {
+                $evento->hora = $validated['hora'];
+            }
+            // Otros campos que necesites mapear
+            $evento->save();
+
             // Procesar la imagen si se proporciona
             if ($request->hasFile('imagen')) {
                 $imagenPath = $request->file('imagen')->store('eventos', 'public');
