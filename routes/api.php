@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\TipoEntradaController;
 use App\Http\Controllers\Api\VentaEntradaController;
 use App\Http\Controllers\Api\OrganizadorFavoritoController;
 use App\Http\Controllers\Api\PdfController;
+use App\Http\Controllers\Api\OrganizadorController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -17,6 +18,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/eventos', [EventoController::class, 'getAllEventos']);
 Route::get('/eventos/{id}', [EventoController::class, 'getEventoById']);
+Route::get('/organizadores', [OrganizadorController::class, 'getAllOrganizadores']);
 
 // Rutas protegidas que requieren autenticación
 Route::middleware('auth:sanctum')->group(function () {
