@@ -68,12 +68,14 @@ class EventoController extends Controller
     public function getAllEventos()
     {
         try {
-            // Obtener todos los eventos con sus relaciones
+            // Obtener todos los eventos con sus relaciones y ordenarlos por fecha
             $eventos = Evento::with([
                 'organizador', 
                 'organizador.user',
                 'entradas'
-            ])->get();
+            ])
+            ->orderBy('fechaEvento', 'asc') // Ordenar por fecha (ascendente - próximos primero)
+            ->get();
 
             // Transformar los datos para la respuesta
             $eventosData = $eventos->map(function ($evento) {
@@ -85,6 +87,7 @@ class EventoController extends Controller
                     'hora' => $evento->hora,
                     'ubicacion' => $evento->ubicacion,
                     'imagen' => $evento->imagen,
+                    'imagen_url' => url('/storage/' . $evento->imagen), // Añadir URL completa
                     'categoria' => $evento->categoria,
                     'lugar' => $evento->lugar,
                     'organizador' => [
@@ -588,6 +591,16 @@ class EventoController extends Controller
                 'tipos_entrada.*.activo' => 'sometimes|boolean'
             ]);
 
+            // Mapear campos directamente
+            if (isset($validated['fecha'])) {
+                $evento->fechaEvento = $validated['fecha'];
+            }
+            if (isset($validated['hora'])) {
+                $evento->hora = $validated['hora'];
+            }
+            // Otros campos que necesites mapear
+            $evento->save();
+
             // Procesar la imagen si se proporciona
             if ($request->hasFile('imagen')) {
                 $imagenPath = $request->file('imagen')->store('eventos', 'public');
@@ -680,7 +693,7 @@ class EventoController extends Controller
                 ], 403);
             }
 
-            // Obtener el idOrganizador usando user_id en lugar de idUser
+            // Obtener el idOrganizador usando user_id
             $organizador = Organizador::where('user_id', $request->user()->idUser)->first();
             
             if (!$organizador) {
@@ -692,14 +705,22 @@ class EventoController extends Controller
                 ], 404);
             }
 
-            // Obtener todos los eventos del organizador
+            // Obtener todos los eventos del organizador ordenados por fecha
             $eventos = Evento::where('idOrganizador', $organizador->idOrganizador)
-                ->with(['entradas']) // Incluir relaciones si son necesarias
+                ->with(['entradas']) 
+                ->orderBy('fechaEvento', 'asc')
                 ->get();
+            
+            // Transformar para añadir URL completa de las imágenes
+            $eventosTransformados = $eventos->map(function($evento) {
+                $eventoArray = $evento->toArray();
+                $eventoArray['imagen_url'] = url('/storage/' . $evento->imagen);
+                return $eventoArray;
+            });
 
             return response()->json([
                 'message' => 'Eventos obtenidos correctamente',
-                'eventos' => $eventos,
+                'eventos' => $eventosTransformados,
                 'total' => count($eventos),
                 'status' => 'success'
             ], 200);
