@@ -675,6 +675,7 @@ class ComposerStaticInit626b9e7ddd47fb7eff9aaa53cce0c9ad
         'App\\Http\\Controllers\\Api\\EventoController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/EventoController.php',
         'App\\Http\\Controllers\\Api\\FavoritoController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/FavoritoController.php',
         'App\\Http\\Controllers\\Api\\GoogleAuthController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/GoogleAuthController.php',
+        'App\\Http\\Controllers\\Api\\OrganizadorController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/OrganizadorController.php',
         'App\\Http\\Controllers\\Api\\OrganizadorFavoritoController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/OrganizadorFavoritoController.php',
         'App\\Http\\Controllers\\Api\\TipoEntradaController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/TipoEntradaController.php',
         'App\\Http\\Controllers\\Api\\VentaEntradaController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/VentaEntradaController.php',

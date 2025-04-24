@@ -11,6 +11,7 @@ return array(
     'App\\Http\\Controllers\\Api\\EventoController' => $baseDir . '/app/Http/Controllers/Api/EventoController.php',
     'App\\Http\\Controllers\\Api\\FavoritoController' => $baseDir . '/app/Http/Controllers/Api/FavoritoController.php',
     'App\\Http\\Controllers\\Api\\GoogleAuthController' => $baseDir . '/app/Http/Controllers/Api/GoogleAuthController.php',
+    'App\\Http\\Controllers\\Api\\OrganizadorController' => $baseDir . '/app/Http/Controllers/Api/OrganizadorController.php',
     'App\\Http\\Controllers\\Api\\OrganizadorFavoritoController' => $baseDir . '/app/Http/Controllers/Api/OrganizadorFavoritoController.php',
     'App\\Http\\Controllers\\Api\\TipoEntradaController' => $baseDir . '/app/Http/Controllers/Api/TipoEntradaController.php',
     'App\\Http\\Controllers\\Api\\VentaEntradaController' => $baseDir . '/app/Http/Controllers/Api/VentaEntradaController.php',
