@@ -336,7 +336,7 @@ class VentaEntradaController extends Controller
             'comprador' => $datosComprador['nombre'] ?? 'Usuario'
         ]);
         
-        // Simulamos un pago exitoso (100% de éxito para pruebas)
+        // Simulación pago exitoso
         return true;
     }
     

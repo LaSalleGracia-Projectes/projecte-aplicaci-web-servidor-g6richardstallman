@@ -19,6 +19,8 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/eventos', [EventoController::class, 'getAllEventos']);
 Route::get('/eventos/{id}', [EventoController::class, 'getEventoById']);
 Route::get('/organizadores', [OrganizadorController::class, 'getAllOrganizadores']);
+Route::get('/organizadores/{id}', [OrganizadorController::class, 'getOrganizadorById']);
+Route::get('/organizadores/{id}/eventos', [OrganizadorController::class, 'getEventosByOrganizador']);
 
 // Rutas protegidas que requieren autenticación
 Route::middleware('auth:sanctum')->group(function () {
