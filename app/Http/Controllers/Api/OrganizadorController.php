@@ -42,11 +42,24 @@ class OrganizadorController extends Controller
         try {
             $organizador = Organizador::with('user')->findOrFail($id);
             
+            // Obtenemos el nombre completo del usuario asociado
+            $nombreUsuario = null;
+            if ($organizador->user) {
+                $nombreUsuario = $organizador->user->nombre;
+                if ($organizador->user->apellido1) {
+                    $nombreUsuario .= ' ' . $organizador->user->apellido1;
+                }
+                if ($organizador->user->apellido2) {
+                    $nombreUsuario .= ' ' . $organizador->user->apellido2;
+                }
+            }
+            
             // Transformar la respuesta para ajustarla al formato requerido
             $organizadorData = [
                 'id' => $organizador->idOrganizador,
                 'nombre_organizacion' => $organizador->nombre_organizacion,
                 'telefono_contacto' => $organizador->telefono_contacto,
+                'nombre_usuario' => $nombreUsuario,
                 'user' => $organizador->user,
                 'avatar_url' => $organizador->user && $organizador->user->avatar 
                     ? url('/storage/' . $organizador->user->avatar) 
