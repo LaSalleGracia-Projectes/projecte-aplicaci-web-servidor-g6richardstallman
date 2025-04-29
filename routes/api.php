@@ -17,10 +17,14 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/eventos', [EventoController::class, 'getAllEventos']);
+Route::get('/eventos/precios-minimos', [EventoController::class, 'getPrecioMinimoEventos']);
+Route::get('/eventos/{id}/precio-minimo', [EventoController::class, 'getPrecioMinimoEvento']);
+Route::get('/eventos/categoria/{categoria}', [EventoController::class, 'getEventosByCategoria']);
 Route::get('/eventos/{id}', [EventoController::class, 'getEventoById']);
 Route::get('/organizadores', [OrganizadorController::class, 'getAllOrganizadores']);
 Route::get('/organizadores/{id}', [OrganizadorController::class, 'getOrganizadorById']);
 Route::get('/organizadores/{id}/eventos', [OrganizadorController::class, 'getEventosByOrganizador']);
+Route::get('/organizadores/{id}/es-favorito', [OrganizadorController::class, 'checkIsFavorito']);
 
 // Rutas protegidas que requieren autenticación
 Route::middleware('auth:sanctum')->group(function () {
