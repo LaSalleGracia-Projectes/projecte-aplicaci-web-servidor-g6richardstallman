@@ -19,6 +19,8 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/eventos', [EventoController::class, 'getAllEventos']);
 Route::get('/eventos/precios-minimos', [EventoController::class, 'getPrecioMinimoEventos']);
 Route::get('/eventos/{id}/precio-minimo', [EventoController::class, 'getPrecioMinimoEvento']);
+Route::get('/eventos/precios-maximos', [EventoController::class, 'getPrecioMaximoEventos']);
+Route::get('/eventos/{id}/precio-maximo', [EventoController::class, 'getPrecioMaximoEvento']);
 Route::get('/eventos/categoria/{categoria}', [EventoController::class, 'getEventosByCategoria']);
 Route::get('/eventos/{id}', [EventoController::class, 'getEventoById']);
 Route::get('/organizadores', [OrganizadorController::class, 'getAllOrganizadores']);

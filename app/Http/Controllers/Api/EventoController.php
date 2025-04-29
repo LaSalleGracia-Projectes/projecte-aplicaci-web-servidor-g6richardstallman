@@ -933,4 +933,92 @@ class EventoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Obtener el precio máximo de cada evento
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPrecioMaximoEventos()
+    {
+        try {
+            // Obtener todos los eventos con sus tipos de entrada
+            $eventos = Evento::with(['tiposEntrada' => function($query) {
+                $query->where('activo', true)
+                      ->orderBy('precio', 'desc');
+            }])->get();
+
+            // Transformar los datos para mostrar solo el precio máximo
+            $eventosData = $eventos->map(function ($evento) {
+                $precioMaximo = null;
+                if ($evento->tiposEntrada->isNotEmpty()) {
+                    $precioMaximo = $evento->tiposEntrada->first()->precio;
+                }
+
+                return [
+                    'id' => $evento->idEvento,
+                    'nombreEvento' => $evento->nombreEvento,
+                    'precio_maximo' => $precioMaximo,
+                    'moneda' => 'EUR'
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Precios máximos obtenidos con éxito',
+                'eventos' => $eventosData
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener precios máximos: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al obtener los precios máximos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener el precio máximo de un evento específico
+     *
+     * @param int $id ID del evento
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPrecioMaximoEvento($id)
+    {
+        try {
+            // Buscar el evento con sus tipos de entrada
+            $evento = Evento::with(['tiposEntrada' => function($query) {
+                $query->where('activo', true)
+                      ->orderBy('precio', 'desc');
+            }])->find($id);
+
+            // Si no se encuentra el evento
+            if (!$evento) {
+                return response()->json([
+                    'message' => 'Evento no encontrado'
+                ], 404);
+            }
+
+            // Obtener el precio máximo
+            $precioMaximo = null;
+            if ($evento->tiposEntrada->isNotEmpty()) {
+                $precioMaximo = $evento->tiposEntrada->first()->precio;
+            }
+
+            return response()->json([
+                'message' => 'Precio máximo obtenido con éxito',
+                'evento' => [
+                    'id' => $evento->idEvento,
+                    'nombreEvento' => $evento->nombreEvento,
+                    'precio_maximo' => $precioMaximo,
+                    'moneda' => 'EUR'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener precio máximo: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al obtener el precio máximo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 
