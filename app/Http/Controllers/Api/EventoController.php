@@ -736,4 +736,201 @@ class EventoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Obtener eventos por categoría
+     *
+     * @param string $categoria La categoría de eventos a buscar
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getEventosByCategoria($categoria, Request $request)
+    {
+        try {
+            // Normalizar la categoría (primera letra mayúscula, resto minúsculas)
+            $categoriaNormalizada = ucfirst(strtolower($categoria));
+            
+            // Verificar si la categoría es válida (opcional, dependiendo de tus requisitos)
+            $categoriasValidas = \App\Enums\CategoriaEvento::getAllValues();
+            
+            // Si quieres validar la categoría, descomenta estas líneas
+            /*
+            if (!in_array($categoriaNormalizada, $categoriasValidas)) {
+                return response()->json([
+                    'error' => 'Categoría no válida',
+                    'message' => 'La categoría proporcionada no es válida',
+                    'categorias_validas' => $categoriasValidas,
+                    'status' => 'error'
+                ], 400);
+            }
+            */
+            
+            // Obtener los eventos de la categoría especificada
+            $eventos = Evento::with([
+                'organizador', 
+                'organizador.user',
+                'tiposEntrada'
+            ])
+            ->where('categoria', $categoriaNormalizada)
+            ->orderBy('fechaEvento', 'asc')
+            ->get();
+            
+            // Verificar si hay usuario autenticado para comprobar favoritos
+            $participante = null;
+            $user = $request->user();
+            if ($user && $user->role === 'participante') {
+                $participante = Participante::where('idUser', $user->idUser)->first();
+            }
+            
+            // Transformar los datos para la respuesta
+            $eventosData = $eventos->map(function ($evento) use ($participante) {
+                // Verificar si es favorito
+                $isFavorito = false;
+                if ($participante) {
+                    $isFavorito = DB::table('favorito')
+                        ->where('idParticipante', $participante->idParticipante)
+                        ->where('idEvento', $evento->idEvento)
+                        ->exists();
+                }
+                
+                return [
+                    'id' => $evento->idEvento,
+                    'nombreEvento' => $evento->nombreEvento,
+                    'fechaEvento' => $evento->fechaEvento,
+                    'descripcion' => $evento->descripcion,
+                    'hora' => $evento->hora,
+                    'ubicacion' => $evento->ubicacion,
+                    'imagen' => $evento->imagen,
+                    'imagen_url' => url('/storage/' . $evento->imagen),
+                    'categoria' => $evento->categoria,
+                    'lugar' => $evento->lugar,
+                    'is_favorite' => $isFavorito,
+                    'organizador' => [
+                        'id' => $evento->organizador->idOrganizador,
+                        'nombre_organizacion' => $evento->organizador->nombre_organizacion,
+                        'telefono_contacto' => $evento->organizador->telefono_contacto,
+                        'user' => [
+                            'id' => $evento->organizador->user->idUser,
+                            'nombre' => $evento->organizador->user->nombre,
+                            'apellido1' => $evento->organizador->user->apellido1,
+                            'apellido2' => $evento->organizador->user->apellido2,
+                            'email' => $evento->organizador->user->email
+                        ]
+                    ],
+                    'tipos_entrada' => $evento->tiposEntrada->map(function ($tipo) {
+                        return [
+                            'id' => $tipo->idTipoEntrada,
+                            'nombre' => $tipo->nombre,
+                            'precio' => $tipo->precio,
+                            'cantidad_disponible' => $tipo->cantidad_disponible,
+                            'es_ilimitado' => $tipo->es_ilimitado
+                        ];
+                    })
+                ];
+            });
+            
+            return response()->json([
+                'categoria' => $categoriaNormalizada,
+                'eventos' => $eventosData,
+                'total' => count($eventosData),
+                'message' => 'Eventos obtenidos correctamente',
+                'status' => 'success'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener los eventos por categoría',
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener el precio mínimo de cada evento
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPrecioMinimoEventos()
+    {
+        try {
+            // Obtener todos los eventos con sus tipos de entrada
+            $eventos = Evento::with(['tiposEntrada' => function($query) {
+                $query->where('activo', true)
+                      ->orderBy('precio', 'asc');
+            }])->get();
+
+            // Transformar los datos para mostrar solo el precio mínimo
+            $eventosData = $eventos->map(function ($evento) {
+                $precioMinimo = null;
+                if ($evento->tiposEntrada->isNotEmpty()) {
+                    $precioMinimo = $evento->tiposEntrada->first()->precio;
+                }
+
+                return [
+                    'id' => $evento->idEvento,
+                    'nombreEvento' => $evento->nombreEvento,
+                    'precio_minimo' => $precioMinimo,
+                    'moneda' => 'EUR'
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Precios mínimos obtenidos con éxito',
+                'eventos' => $eventosData
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener precios mínimos: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al obtener los precios mínimos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener el precio mínimo de un evento específico
+     *
+     * @param int $id ID del evento
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPrecioMinimoEvento($id)
+    {
+        try {
+            // Buscar el evento con sus tipos de entrada
+            $evento = Evento::with(['tiposEntrada' => function($query) {
+                $query->where('activo', true)
+                      ->orderBy('precio', 'asc');
+            }])->find($id);
+
+            // Si no se encuentra el evento
+            if (!$evento) {
+                return response()->json([
+                    'message' => 'Evento no encontrado'
+                ], 404);
+            }
+
+            // Obtener el precio mínimo
+            $precioMinimo = null;
+            if ($evento->tiposEntrada->isNotEmpty()) {
+                $precioMinimo = $evento->tiposEntrada->first()->precio;
+            }
+
+            return response()->json([
+                'message' => 'Precio mínimo obtenido con éxito',
+                'evento' => [
+                    'id' => $evento->idEvento,
+                    'nombreEvento' => $evento->nombreEvento,
+                    'precio_minimo' => $precioMinimo,
+                    'moneda' => 'EUR'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener precio mínimo: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al obtener el precio mínimo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 
