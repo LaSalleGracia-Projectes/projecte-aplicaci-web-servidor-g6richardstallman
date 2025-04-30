@@ -1,15 +1,20 @@
-# Laravel core
+# Composer
 /vendor
+composer.lock
+composer.phar
+
+# Node modules
 /node_modules
+
+# Laravel specific
 /public/storage
 /storage/*.key
 .env
 .env.*.php
-.phpunit.result.cache
 Homestead.json
 Homestead.yaml
 
-# Laravel 10/11 cache & logs
+# Laravel cache & logs
 /storage/app/public
 /storage/framework/cache
 /storage/framework/sessions
@@ -26,9 +31,8 @@ Homestead.yaml
 # OS files
 .DS_Store
 Thumbs.db
-  
-# Composer & NPM
-composer.lock
+
+# NPM/Yarn logs
 npm-debug.log
 yarn-error.log
 pnpm-debug.log
@@ -39,10 +43,7 @@ storage/telescope
 # Laravel Horizon
 storage/horizon
 
-# Testing
-coverage/
-
-# Others
+# Otros
 *.log
 *.zip
 *.bak
