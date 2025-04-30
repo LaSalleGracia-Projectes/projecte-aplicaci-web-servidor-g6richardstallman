@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 
 class AvatarController extends Controller
 {
+    
     /**
      * Sube un avatar para el usuario autenticado
      */
