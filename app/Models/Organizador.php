@@ -54,4 +54,10 @@ class Organizador extends Model
     {
         return $this->participantesFavoritos()->where('idParticipante', $idParticipante)->exists();
     }
+
+    // Método para obtener el avatar del usuario
+    public function getAvatarAttribute()
+    {
+        return $this->user ? $this->user->avatar : null;
+    }
 }

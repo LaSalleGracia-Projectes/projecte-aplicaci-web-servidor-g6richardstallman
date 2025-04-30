@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\VentaEntradaController;
 use App\Http\Controllers\Api\OrganizadorFavoritoController;
 use App\Http\Controllers\Api\PdfController;
 use App\Http\Controllers\Api\OrganizadorController;
+use App\Http\Controllers\Api\AvatarController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -84,6 +85,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas para generar PDFs
     Route::get('/factura/{id}/pdf', [PdfController::class, 'generarFacturaPdf']);
     Route::get('/entrada/{id}/pdf', [PdfController::class, 'generarEntradaPdf']);
+
+    // Rutas de avatares
+    Route::post('/avatar/upload', [AvatarController::class, 'upload']);
+    Route::post('/avatar/generate', [AvatarController::class, 'generate']);
+    Route::delete('/avatar', [AvatarController::class, 'delete']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
@@ -92,3 +98,4 @@ Route::get('/eventos/{idEvento}/tipos-entrada', [TipoEntradaController::class, '
 // Rutas para autenticación con Google
 Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
+Route::post('/auth/google/verify-token', [AuthController::class, 'verifyGoogleToken']);

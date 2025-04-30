@@ -1,0 +1,55 @@
+# Laravel core
+/vendor
+/node_modules
+/public/storage
+/storage/*.key
+.env
+.env.*.php
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+
+# Laravel 10/11 cache & logs
+/storage/app/public
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/testing
+/storage/framework/views
+/storage/logs
+
+# IDEs and editors
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Composer & NPM
+composer.lock
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Laravel Telescope
+storage/telescope
+
+# Laravel Horizon
+storage/horizon
+
+# Testing
+coverage/
+
+# Others
+*.log
+*.zip
+*.bak
+*.swp
+*.md
+*.txt
+*.pdf
+*.doc
+*.docx
+*.xls

@@ -22,6 +22,7 @@ use App\Models\Favorito;
 use App\Models\Valoracion;
 use App\Models\Evento;
 use App\Models\TipoEntrada;
+use App\Helpers\AvatarHelper;
 
 class AuthController extends Controller
 {
@@ -37,110 +38,76 @@ class AuthController extends Controller
         }
 
         try {
-            // Validar datos de entrada básicos
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'apellido1' => 'required|string|max:255',
                 'apellido2' => 'nullable|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:6',
-                'role' => 'required|in:organizador,participante',
+                'password' => 'required|string|min:8|confirmed',
+                'role' => 'required|in:participante,organizador',
+                // Campos específicos para organizador
                 'nombre_organizacion' => 'required_if:role,organizador|string|max:255',
-                'telefono_contacto' => 'required_if:role,organizador|string|max:15',
-                'dni' => 'required_if:role,participante|string|max:10|unique:participante,dni',
-                'telefono' => 'required_if:role,participante|string|max:15',
-            ], [
-                'nombre.required' => 'El nombre es obligatorio',
-                'apellido1.required' => 'El primer apellido es obligatorio',
-                'email.required' => 'El email es obligatorio',
-                'email.email' => 'El email debe ser válido',
-                'email.unique' => 'Este email ya está registrado',
-                'password.required' => 'La contraseña es obligatoria',
-                'password.min' => 'La contraseña debe tener al menos 6 caracteres',
-                'role.required' => 'El rol es obligatorio',
-                'role.in' => 'El rol debe ser organizador o participante',
-                'dni.required_if' => 'El DNI es obligatorio para participantes',
-                'dni.unique' => 'Este DNI ya está registrado',
-                'telefono.required_if' => 'El teléfono es obligatorio para participantes',
-                'nombre_organizacion.required_if' => 'El nombre de la organización es obligatorio para organizadores',
-                'telefono_contacto.required_if' => 'El teléfono de contacto es obligatorio para organizadores'
+                'telefono_contacto' => 'required_if:role,organizador|string|max:20',
+                // Campos específicos para participante
+                'dni' => 'required_if:role,participante|string|max:20',
+                'telefono' => 'required_if:role,participante|string|max:20',
+                'direccion' => 'required_if:role,participante|string|max:255'
             ]);
 
-            // Validaciones adicionales según rol
-            if ($validated['role'] === 'participante') {
-                if (!$this->isValidDNI($validated['dni'])) {
-                    return response()->json([
-                        'error' => 'Validación fallida',
-                        'message' => 'El DNI proporcionado no es válido. Debe tener 8 números y 1 letra.',
-                        'status' => 'error'
-                    ], 422);
-                }
+            DB::beginTransaction();
+
+            try {
+                // Generar avatar por defecto usando ui-avatars.com
+                $avatarUrl = AvatarHelper::generateDefaultAvatarUrl(
+                    $validated['role'] === 'organizador' ? $validated['nombre_organizacion'] : $validated['nombre'],
+                    $validated['role']
+                );
+
+                // Crear usuario
+                $user = User::create([
+                    'nombre' => $validated['nombre'],
+                    'apellido1' => $validated['apellido1'],
+                    'apellido2' => $validated['apellido2'] ?? null,
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                    'role' => $validated['role'],
+                    'avatar' => $avatarUrl
+                ]);
                 
-                if (!$this->isValidPhone($validated['telefono'])) {
-                    return response()->json([
-                        'error' => 'Validación fallida',
-                        'message' => 'El teléfono proporcionado no es válido. Debe tener 9 dígitos o formato internacional (+34XXXXXXXXX).',
-                        'status' => 'error'
-                    ], 422);
+                // Crear perfil específico según el rol
+                if ($validated['role'] === 'organizador') {
+                    Organizador::create([
+                        'user_id' => $user->idUser,
+                        'nombre_organizacion' => $validated['nombre_organizacion'],
+                        'telefono_contacto' => $validated['telefono_contacto']
+                    ]);
+                } else {
+                    Participante::create([
+                        'user_id' => $user->idUser,
+                        'dni' => $validated['dni'],
+                        'telefono' => $validated['telefono'],
+                        'direccion' => $validated['direccion']
+                    ]);
                 }
-            } elseif ($validated['role'] === 'organizador') {
-                if (!$this->isValidPhone($validated['telefono_contacto'])) {
-                    return response()->json([
-                        'error' => 'Validación fallida',
-                        'message' => 'El teléfono de contacto proporcionado no es válido. Debe tener 9 dígitos o formato internacional (+34XXXXXXXXX).',
-                        'status' => 'error'
-                    ], 422);
-                }
+
+                DB::commit();
+
+                // Generar token
+                $token = $user->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'message' => 'Usuario registrado exitosamente',
+                    'user' => $user,
+                    'token' => $token,
+                    'token_type' => 'Bearer'
+                ], 201);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
             }
-
-            $user = User::create([
-                'nombre' => $validated['nombre'],
-                'apellido1' => $validated['apellido1'],
-                'apellido2' => $validated['apellido2'] ?? null,
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role' => $validated['role']
-            ]);
-
-            // Enviar correo de confirmación
-            Mail::to($user->email)->send(new RegistroConfirmacion($user));
-
-            // Eliminar tokens existentes (por si acaso)
-            $user->tokens()->delete();
-            
-            // Crear un token con nombre fijo para que siempre sea el mismo
-            $token = $user->createToken('persistent_token')->plainTextToken;
-            $user->remember_token = $token;
-            $user->save();
-
-            if ($validated['role'] === 'organizador') {
-                Organizador::create([
-                    'nombre_organizacion' => $validated['nombre_organizacion'],
-                    'telefono_contacto' => $validated['telefono_contacto'],
-                    'user_id' => $user->idUser
-                ]);
-            } elseif ($validated['role'] === 'participante') {
-                Participante::create([
-                    'dni' => $validated['dni'],
-                    'telefono' => $validated['telefono'],
-                    'idUser' => $user->idUser
-                ]);
-            }
-
-            return response()->json([
-                'message' => 'Usuario registrado exitosamente',
-                'user' => $user,
-                'token' => $token
-            ], 201);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'error' => 'Error de validación',
-                'messages' => $e->errors(),
-                'status' => 'error'
-            ], 422);
         } catch (\Exception $e) {
-            Log::error('Error en el registro: '.$e->getMessage());
+            Log::error('Error en registro: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al registrar usuario',
                 'error' => $e->getMessage()
@@ -831,5 +798,68 @@ class AuthController extends Controller
         
         // Otros formatos válidos (máximo 15 caracteres según API)
         return strlen($telefono) <= 15;
+    }
+    public function verifyGoogleToken(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'idToken' => 'required|string',
+                'email' => 'required|email',
+                'nombre' => 'required|string',
+                'apellido1' => 'required|string',
+                'apellido2' => 'nullable|string'
+            ]);
+
+            // Verificar si el usuario ya existe
+            $user = User::where('email', $validated['email'])->first();
+
+            DB::beginTransaction();
+
+            if (!$user) {
+                // Crear nuevo usuario
+                $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($validated['nombre']) . "&background=c62828&color=fff&bold=true&format=png";
+
+                $user = User::create([
+                    'nombre' => $validated['nombre'],
+                    'apellido1' => $validated['apellido1'],
+                    'apellido2' => $validated['apellido2'] ?? null,
+                    'email' => $validated['email'],
+                    'password' => Hash::make(Str::random(16)), // Contraseña aleatoria
+                    'role' => 'participante',
+                    'avatar' => $avatarUrl,
+                    'google_id' => $validated['idToken']
+                ]);
+
+                // Crear perfil de participante
+                Participante::create([
+                    'user_id' => $user->idUser,
+                    'dni' => null, // El usuario deberá completar esto más tarde
+                    'telefono' => null,
+                    'direccion' => null
+                ]);
+            }
+
+            // Generar token de acceso
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            DB::commit();
+
+            return response()->json([
+                'token' => $token,
+                'user' => $user,
+                'message' => 'Inicio de sesión con Google exitoso',
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error en verificación de Google: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'Error al procesar el inicio de sesión con Google',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
     }
 }

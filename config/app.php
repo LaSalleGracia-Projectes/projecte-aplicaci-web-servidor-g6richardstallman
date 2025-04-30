@@ -154,12 +154,14 @@ return [
          * Package Service Providers...
          */
         Laravel\Socialite\SocialiteServiceProvider::class,
+        Intervention\Image\ImageServiceProvider::class,
     ],
 
     'aliases' => [
         'App' => Illuminate\Support\Facades\App::class,
         'Auth' => Illuminate\Support\Facades\Auth::class,
         'Socialite' => Laravel\Socialite\Facades\Socialite::class,
+        'Image' => Intervention\Image\Facades\Image::class,
     ],
 
 ];

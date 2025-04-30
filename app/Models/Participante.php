@@ -66,4 +66,10 @@ class Participante extends Model
             'idOrganizador'
         )->withTimestamps();
     }
+
+    // Método para obtener el avatar del usuario
+    public function getAvatarAttribute()
+    {
+        return $this->user ? $this->user->avatar : null;
+    }
 }
