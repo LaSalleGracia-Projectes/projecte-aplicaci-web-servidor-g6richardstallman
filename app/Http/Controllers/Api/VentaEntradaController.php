@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Mail\CompraConfirmada;
 use Illuminate\Support\Facades\Mail;
+use PDF;
 
 class VentaEntradaController extends Controller
 {
@@ -293,6 +294,15 @@ class VentaEntradaController extends Controller
 
                 // Enviar email con la venta y factura
                 Mail::to($emailComprador)->send(new CompraConfirmada($ventaEntrada, $datosEvento, $datosParticipante, $factura ?? null));
+                
+                // Generar y enviar la entrada por correo
+                $ventaEntrada = VentaEntrada::with(['entrada.evento', 'entrada.tipoEntrada'])
+                    ->findOrFail($ventaEntrada->idVentaEntrada);
+                
+                $pdf = PDF::loadView('pdfs.entrada', ['venta' => $ventaEntrada]);
+                $nombreArchivo = 'entrada-' . $ventaEntrada->entrada->codigo . '.pdf';
+                
+                Mail::to($emailComprador)->send(new \App\Mail\EntradaEnviada($ventaEntrada, $pdf->output(), $nombreArchivo));
                 
                 return response()->json($respuesta, 201);
                 
