@@ -90,5 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/eventos/{idEvento}/tipos-entrada', [TipoEntradaController::class, 'index']);
 
 // Rutas para autenticación con Google
-Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);
-Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
+Route::match(['get', 'post'], '/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);
+Route::match(['get', 'post'], '/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
+Route::post('/auth/google/mobile', [GoogleAuthController::class, 'handleGoogleMobile']);
+Route::post('/auth/google/mobile/register', [GoogleAuthController::class, 'redirectToGoogleMobile']);

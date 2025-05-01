@@ -18,10 +18,16 @@ class GoogleAuthController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function redirectToGoogle()
+    public function redirectToGoogle(Request $request)
     {
         try {
-            $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
+            // Usar la URL de redirección configurada en el .env
+            $url = Socialite::driver('google')
+                ->stateless()
+                ->with(['prompt' => 'select_account'])
+                ->redirect()
+                ->getTargetUrl();
+                
             return response()->json([
                 'url' => $url
             ]);
@@ -80,6 +86,112 @@ class GoogleAuthController extends Controller
 
         } catch (Exception $e) {
             Log::error('Error en callback de Google: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al procesar la autenticación con Google',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Manejar la autenticación móvil con Google
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function handleGoogleMobile(Request $request)
+    {
+        try {
+            // Validar los datos recibidos
+            $validated = $request->validate([
+                'email' => 'required|email',
+                'nombre' => 'required|string',
+                'apellido1' => 'required|string',
+                'apellido2' => 'nullable|string',
+                'photo_url' => 'nullable|string',    
+                'token' => 'nullable|string',        
+                'google_id' => 'nullable|string',   
+                'id' => 'nullable|string'           
+                
+            ]);
+
+            // Buscar o crear el usuario
+            $user = User::updateOrCreate(
+                ['email' => $validated['email']],
+                [
+                    'nombre' => $validated['nombre'],
+                    'apellido1' => $validated['apellido1'],
+                    'apellido2' => $validated['apellido2'],
+                    'avatar' => $validated['photo_url'] ?? null,  
+                    'password' => bcrypt(Str::random(16)),
+                    'google_id' => $validated['google_id'] ?? $validated['id'] ?? null,
+                    'role' => 'participante'
+                ]
+            );
+
+            // Crear token de acceso
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Usuario autenticado exitosamente',
+                'user' => $user,
+                'token' => $token,
+                'token_type' => 'Bearer'
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error en autenticación móvil de Google: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al procesar la autenticación con Google',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Manejar la autenticación móvil con Google incluyendo datos adicionales del usuario
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function redirectToGoogleMobile(Request $request)
+    {
+        try {
+            // Validar los datos recibidos
+            $validated = $request->validate([
+                'email' => 'required|email',
+                'nombre' => 'required|string',
+                'apellido1' => 'required|string',
+                'apellido2' => 'nullable|string',
+                'photo_url' => 'nullable|string',    // Este campo se mapea a avatar
+                'token' => 'nullable|string',        // Token de Google (se almacena en Sanctum)
+                'google_id' => 'nullable|string',    // ID de Google
+                'id' => 'nullable|string'            // ID adicional
+            ]);
+
+            // Crear o actualizar el usuario
+            $user = User::updateOrCreate(
+                ['email' => $validated['email']],
+                [
+                    'nombre' => $validated['nombre'],
+                    'apellido1' => $validated['apellido1'],
+                    'apellido2' => $validated['apellido2'],
+                    'avatar' => $validated['photo_url'] ?? null,  // Usar avatar en lugar de photo_url
+                    'google_id' => $validated['google_id'] ?? $validated['id'] ?? null,
+                    'role' => 'participante'
+                ]
+            );
+
+            // Generar token
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'token' => $token,
+                'user' => $user,
+                'role' => $user->role
+            ]);
+
+        } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al procesar la autenticación con Google',
                 'error' => $e->getMessage()
