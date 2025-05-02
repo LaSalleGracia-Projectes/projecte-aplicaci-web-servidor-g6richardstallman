@@ -299,7 +299,11 @@ class VentaEntradaController extends Controller
                 $ventaEntrada = VentaEntrada::with(['entrada.evento', 'entrada.tipoEntrada'])
                     ->findOrFail($ventaEntrada->idVentaEntrada);
                 
-                $pdf = PDF::loadView('pdfs.entrada', ['venta' => $ventaEntrada]);
+                $pdf = PDF::loadView('pdfs.entrada', ['venta' => $ventaEntrada])
+                    ->setPaper('a4')
+                    ->setOption('isHtml5ParserEnabled', true)
+                    ->setOption('isPhpEnabled', true);
+                
                 $nombreArchivo = 'entrada-' . $ventaEntrada->entrada->codigo . '.pdf';
                 
                 Mail::to($emailComprador)->send(new \App\Mail\EntradaEnviada($ventaEntrada, $pdf->output(), $nombreArchivo));

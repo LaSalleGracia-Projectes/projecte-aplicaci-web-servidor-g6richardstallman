@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['organizador', 'participante'])->default('participante')->index();
+            $table->enum('role', ['admin', 'organizador', 'participante'])->default('participante')->index();
             $table->rememberToken();
             $table->timestamps();
         });

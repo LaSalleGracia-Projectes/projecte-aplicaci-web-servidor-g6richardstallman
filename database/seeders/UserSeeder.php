@@ -12,6 +12,16 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory(10)->create();
+        // Crear 5 organizadores
+        User::factory()
+            ->count(5)
+            ->organizador()
+            ->create();
+
+        // Crear 10 participantes
+        User::factory()
+            ->count(10)
+            ->participante()
+            ->create();
     }
 }

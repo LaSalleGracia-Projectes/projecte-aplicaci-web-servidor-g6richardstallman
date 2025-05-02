@@ -94,3 +94,4 @@ Route::match(['get', 'post'], '/auth/google', [GoogleAuthController::class, 'red
 Route::match(['get', 'post'], '/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
 Route::post('/auth/google/mobile', [GoogleAuthController::class, 'handleGoogleMobile']);
 Route::post('/auth/google/mobile/register', [GoogleAuthController::class, 'redirectToGoogleMobile']);
+Route::post('/auth/google/complete-registration', [GoogleAuthController::class, 'completeGoogleRegistration']);
