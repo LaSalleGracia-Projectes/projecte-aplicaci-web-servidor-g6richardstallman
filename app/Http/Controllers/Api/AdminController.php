@@ -357,4 +357,60 @@ class AdminController extends Controller
             ], 500);
         }
     }
+
+    public function getAllEventos()
+    {
+        try {
+            $eventos = Evento::with(['tiposEntrada', 'organizador'])
+                ->orderBy('fechaEvento', 'desc')
+                ->get()
+                ->map(function ($evento) {
+                    return [
+                        'idEvento' => $evento->idEvento,
+                        'nombreEvento' => $evento->nombreEvento,
+                        'descripcion' => $evento->descripcion,
+                        'fechaEvento' => $evento->fechaEvento,
+                        'hora' => $evento->hora,
+                        'ubicacion' => $evento->lugar,
+                        'categoria' => $evento->categoria,
+                        'imagen' => $evento->imagen ? Storage::url($evento->imagen) : null,
+                        'es_online' => $evento->es_online,
+                        'enlace_streaming' => $evento->enlace_streaming,
+                        'organizador' => [
+                            'idUser' => $evento->organizador->idUser,
+                            'nombre' => $evento->organizador->nombre,
+                            'apellido1' => $evento->organizador->apellido1,
+                            'apellido2' => $evento->organizador->apellido2,
+                            'email' => $evento->organizador->email
+                        ],
+                        'tiposEntrada' => $evento->tiposEntrada->map(function ($tipoEntrada) {
+                            return [
+                                'idTipoEntrada' => $tipoEntrada->idTipoEntrada,
+                                'nombre' => $tipoEntrada->nombre,
+                                'precio' => $tipoEntrada->precio,
+                                'cantidad_disponible' => $tipoEntrada->cantidad_disponible,
+                                'entradas_vendidas' => $tipoEntrada->entradas_vendidas,
+                                'descripcion' => $tipoEntrada->descripcion,
+                                'es_ilimitado' => $tipoEntrada->es_ilimitado,
+                                'activo' => $tipoEntrada->activo
+                            ];
+                        }),
+                        'created_at' => $evento->created_at,
+                        'updated_at' => $evento->updated_at
+                    ];
+                });
+
+            return response()->json([
+                'message' => 'Eventos obtenidos exitosamente',
+                'eventos' => $eventos
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener eventos: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al obtener los eventos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

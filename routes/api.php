@@ -90,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/users', [AdminController::class, 'getAllUsers']);
     Route::put('/admin/users/{userId}/password', [AdminController::class, 'changeUserPassword']);
     Route::put('/admin/users/{userId}', [AdminController::class, 'updateUser']);
+    Route::get('/admin/eventos', [AdminController::class, 'getAllEventos']);
     Route::put('/admin/eventos/{idEvento}', [AdminController::class, 'updateEvento']);
     Route::delete('/admin/eventos/{idEvento}', [AdminController::class, 'deleteEvento']);
 });
