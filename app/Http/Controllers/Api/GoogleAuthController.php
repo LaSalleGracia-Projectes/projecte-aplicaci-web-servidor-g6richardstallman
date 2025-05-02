@@ -56,33 +56,41 @@ class GoogleAuthController extends Controller
             $apellido1 = isset($nombreCompleto[1]) ? $nombreCompleto[1] : '';
             $apellido2 = isset($nombreCompleto[2]) ? $nombreCompleto[2] : '';
 
-            // Generar una contraseña aleatoria segura
-            $password = bcrypt(Str::random(16));
+            // Verificar si el usuario ya existe
+            $user = User::where('email', $googleUser->email)->first();
 
-            // Buscar o crear el usuario con los campos que coinciden con tu modelo User
-            $user = User::updateOrCreate(
-                ['email' => $googleUser->email],
-                [
-                    'nombre' => $nombre,
-                    'apellido1' => $apellido1,
-                    'apellido2' => $apellido2,
-                    'password' => $password, // Añadimos la contraseña
+            if ($user) {
+                // Si el usuario existe, actualizar sus datos de Google y autenticarlo
+                $user->update([
                     'google_id' => $googleUser->id,
-                    'avatar' => $googleUser->avatar,
-                    'email_verified_at' => now(),
-                    'role' => 'participante' // Asignamos rol por defecto
-                ]
-            );
+                    'avatar' => $googleUser->avatar
+                ]);
 
-            // Crear token de acceso
-            $token = $user->createToken('auth_token')->plainTextToken;
+                // Crear token de acceso
+                $token = $user->createToken('auth_token')->plainTextToken;
 
-            return response()->json([
-                'message' => 'Usuario autenticado exitosamente',
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer'
-            ]);
+                return response()->json([
+                    'message' => 'Usuario autenticado exitosamente',
+                    'user' => $user,
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                    'needs_registration' => false
+                ]);
+            } else {
+                // Si el usuario no existe, devolver los datos para registro
+                return response()->json([
+                    'message' => 'Usuario no registrado',
+                    'needs_registration' => true,
+                    'user_data' => [
+                        'email' => $googleUser->email,
+                        'nombre' => $nombre,
+                        'apellido1' => $apellido1,
+                        'apellido2' => $apellido2,
+                        'google_id' => $googleUser->id,
+                        'avatar' => $googleUser->avatar
+                    ]
+                ], 200);
+            }
 
         } catch (Exception $e) {
             Log::error('Error en callback de Google: ' . $e->getMessage());
@@ -112,32 +120,52 @@ class GoogleAuthController extends Controller
                 'token' => 'nullable|string',        
                 'google_id' => 'nullable|string',   
                 'id' => 'nullable|string'           
-                
             ]);
 
-            // Buscar o crear el usuario
-            $user = User::updateOrCreate(
-                ['email' => $validated['email']],
-                [
+            // Verificar si el usuario ya existe
+            $user = User::where('email', $validated['email'])->first();
+
+            if (!$user) {
+                // Si el usuario no existe, crearlo
+                $user = User::create([
+                    'email' => $validated['email'],
                     'nombre' => $validated['nombre'],
                     'apellido1' => $validated['apellido1'],
                     'apellido2' => $validated['apellido2'],
-                    'avatar' => $validated['photo_url'] ?? null,  
+                    'avatar' => $validated['photo_url'] ?? null,
                     'password' => bcrypt(Str::random(16)),
                     'google_id' => $validated['google_id'] ?? $validated['id'] ?? null,
                     'role' => 'participante'
-                ]
-            );
+                ]);
 
-            // Crear token de acceso
-            $token = $user->createToken('auth_token')->plainTextToken;
+                // Crear token de acceso
+                $token = $user->createToken('auth_token')->plainTextToken;
 
-            return response()->json([
-                'message' => 'Usuario autenticado exitosamente',
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer'
-            ]);
+                return response()->json([
+                    'message' => 'Usuario registrado y autenticado exitosamente',
+                    'user' => $user,
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                    'needs_registration' => true
+                ]);
+            } else {
+                // Si el usuario existe, actualizar sus datos de Google
+                $user->update([
+                    'google_id' => $validated['google_id'] ?? $validated['id'] ?? null,
+                    'avatar' => $validated['photo_url'] ?? null
+                ]);
+
+                // Crear token de acceso
+                $token = $user->createToken('auth_token')->plainTextToken;
+
+                return response()->json([
+                    'message' => 'Usuario autenticado exitosamente',
+                    'user' => $user,
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                    'needs_registration' => false
+                ]);
+            }
 
         } catch (Exception $e) {
             Log::error('Error en autenticación móvil de Google: ' . $e->getMessage());
@@ -169,23 +197,33 @@ class GoogleAuthController extends Controller
                 'id' => 'nullable|string'            // ID adicional
             ]);
 
-            // Crear o actualizar el usuario
-            $user = User::updateOrCreate(
-                ['email' => $validated['email']],
-                [
+            // Verificar si el usuario ya existe
+            $user = User::where('email', $validated['email'])->first();
+
+            if (!$user) {
+                // Si el usuario no existe, crearlo
+                $user = User::create([
+                    'email' => $validated['email'],
                     'nombre' => $validated['nombre'],
                     'apellido1' => $validated['apellido1'],
                     'apellido2' => $validated['apellido2'],
-                    'avatar' => $validated['photo_url'] ?? null,  // Usar avatar en lugar de photo_url
+                    'avatar' => $validated['photo_url'] ?? null,
                     'google_id' => $validated['google_id'] ?? $validated['id'] ?? null,
                     'role' => 'participante'
-                ]
-            );
+                ]);
+            } else {
+                // Si el usuario existe, actualizar sus datos de Google
+                $user->update([
+                    'google_id' => $validated['google_id'] ?? $validated['id'] ?? null,
+                    'avatar' => $validated['photo_url'] ?? null
+                ]);
+            }
 
             // Generar token
             $token = $user->createToken('auth_token')->plainTextToken;
 
             return response()->json([
+                'message' => $user->wasRecentlyCreated ? 'Usuario registrado y autenticado exitosamente' : 'Usuario autenticado exitosamente',
                 'token' => $token,
                 'user' => $user,
                 'role' => $user->role
@@ -194,6 +232,62 @@ class GoogleAuthController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al procesar la autenticación con Google',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Completar el registro de un usuario de Google
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function completeGoogleRegistration(Request $request)
+    {
+        try {
+            // Validar los datos recibidos
+            $validated = $request->validate([
+                'email' => 'required|email|unique:users,email',
+                'nombre' => 'required|string',
+                'apellido1' => 'required|string',
+                'apellido2' => 'nullable|string',
+                'google_id' => 'required|string',
+                'avatar' => 'nullable|string'
+            ]);
+
+            // Crear el usuario
+            $user = User::create([
+                'email' => $validated['email'],
+                'nombre' => $validated['nombre'],
+                'apellido1' => $validated['apellido1'],
+                'apellido2' => $validated['apellido2'],
+                'password' => bcrypt(Str::random(16)),
+                'google_id' => $validated['google_id'],
+                'avatar' => $validated['avatar'],
+                'email_verified_at' => now(),
+                'role' => 'participante'
+            ]);
+
+            // Crear token de acceso
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Usuario registrado y autenticado exitosamente',
+                'user' => $user,
+                'token' => $token,
+                'token_type' => 'Bearer'
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            Log::error('Error al completar registro de Google: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al completar el registro',
                 'error' => $e->getMessage()
             ], 500);
         }

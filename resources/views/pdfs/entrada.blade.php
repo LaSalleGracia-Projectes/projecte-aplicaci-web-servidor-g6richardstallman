@@ -58,10 +58,19 @@
             margin: 0 0 10px 0;
         }
         .codigo-entrada p {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
-            margin: 0;
+            margin: 10px 0;
             color: #333;
+        }
+        .qr-code {
+            margin: 20px auto;
+            width: 200px;
+            height: 200px;
+        }
+        .qr-code img {
+            width: 100%;
+            height: 100%;
         }
         .footer {
             margin-top: 50px;
@@ -108,6 +117,9 @@
 
     <div class="codigo-entrada">
         <h3>Código de Entrada</h3>
+        <div class="qr-code">
+            {!! QrCode::size(200)->generate($venta->entrada->codigo) !!}
+        </div>
         <p>{{ $venta->entrada->codigo }}</p>
     </div>
 
