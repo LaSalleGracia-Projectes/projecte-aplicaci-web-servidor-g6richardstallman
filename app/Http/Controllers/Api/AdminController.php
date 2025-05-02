@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
@@ -302,6 +303,56 @@ class AdminController extends Controller
             Log::error('Error al actualizar evento: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al actualizar el evento',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteEvento($idEvento)
+    {
+        try {
+            // Buscar el evento
+            $evento = Evento::find($idEvento);
+            if (!$evento) {
+                return response()->json([
+                    'message' => 'Evento no encontrado'
+                ], 404);
+            }
+
+            // Verificar si hay entradas vendidas
+            $tieneEntradasVendidas = false;
+            foreach ($evento->tiposEntrada as $tipoEntrada) {
+                if ($tipoEntrada->entradas_vendidas > 0) {
+                    $tieneEntradasVendidas = true;
+                    break;
+                }
+            }
+
+            if ($tieneEntradasVendidas) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el evento porque tiene entradas vendidas'
+                ], 422);
+            }
+
+            // Eliminar la imagen si existe
+            if ($evento->imagen) {
+                Storage::disk('public')->delete($evento->imagen);
+            }
+
+            // Eliminar los tipos de entrada asociados
+            $evento->tiposEntrada()->delete();
+
+            // Eliminar el evento
+            $evento->delete();
+
+            return response()->json([
+                'message' => 'Evento eliminado exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar evento: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al eliminar el evento',
                 'error' => $e->getMessage()
             ], 500);
         }
