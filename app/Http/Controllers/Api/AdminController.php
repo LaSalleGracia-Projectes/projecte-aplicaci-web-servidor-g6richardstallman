@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Evento;
+use App\Models\TipoEntrada;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
@@ -158,6 +161,147 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al actualizar el usuario',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateEvento(Request $request, $idEvento)
+    {
+        try {
+            // Buscar el evento
+            $evento = Evento::find($idEvento);
+            if (!$evento) {
+                return response()->json([
+                    'message' => 'Evento no encontrado'
+                ], 404);
+            }
+
+            // Validar los datos
+            $validator = Validator::make($request->all(), [
+                'titulo' => 'sometimes|required|string|max:255',
+                'descripcion' => 'sometimes|required|string',
+                'fecha' => 'sometimes|required|date|after:today',
+                'hora' => 'sometimes|required|date_format:H:i',
+                'ubicacion' => 'sometimes|required|string|max:255',
+                'categoria' => 'sometimes|required|string|max:100',
+                'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'es_online' => 'sometimes|required|boolean',
+                'enlace_streaming' => 'required_if:es_online,true|nullable|url',
+                'tipos_entrada' => 'sometimes|array|min:1',
+                'tipos_entrada.*.idTipoEntrada' => 'sometimes|exists:tipo_entrada,idTipoEntrada',
+                'tipos_entrada.*.nombre' => 'required_with:tipos_entrada|string|max:100',
+                'tipos_entrada.*.precio' => 'required_with:tipos_entrada|numeric|min:0',
+                'tipos_entrada.*.cantidad_disponible' => 'required_if:tipos_entrada.*.es_ilimitado,false|nullable|integer|min:1',
+                'tipos_entrada.*.descripcion' => 'nullable|string',
+                'tipos_entrada.*.es_ilimitado' => 'required_with:tipos_entrada|boolean',
+                'tipos_entrada.*.activo' => 'sometimes|boolean'
+            ], [
+                'titulo.required' => 'El título es obligatorio',
+                'titulo.string' => 'El título debe ser texto',
+                'titulo.max' => 'El título no puede tener más de 255 caracteres',
+                'descripcion.required' => 'La descripción es obligatoria',
+                'fecha.required' => 'La fecha es obligatoria',
+                'fecha.after' => 'La fecha debe ser posterior a hoy',
+                'hora.required' => 'La hora es obligatoria',
+                'hora.date_format' => 'El formato de hora debe ser HH:MM',
+                'ubicacion.required' => 'La ubicación es obligatoria',
+                'categoria.required' => 'La categoría es obligatoria',
+                'imagen.image' => 'El archivo debe ser una imagen',
+                'imagen.mimes' => 'La imagen debe ser de tipo: jpeg, png, jpg, gif',
+                'imagen.max' => 'La imagen no puede pesar más de 2MB',
+                'es_online.required' => 'Debe especificar si el evento es online',
+                'enlace_streaming.required_if' => 'El enlace de streaming es obligatorio para eventos online',
+                'enlace_streaming.url' => 'El enlace de streaming debe ser una URL válida',
+                'tipos_entrada.required' => 'Debe especificar al menos un tipo de entrada',
+                'tipos_entrada.min' => 'Debe especificar al menos un tipo de entrada',
+                'tipos_entrada.*.nombre.required' => 'El nombre del tipo de entrada es obligatorio',
+                'tipos_entrada.*.precio.required' => 'El precio del tipo de entrada es obligatorio',
+                'tipos_entrada.*.precio.numeric' => 'El precio debe ser un número',
+                'tipos_entrada.*.precio.min' => 'El precio no puede ser negativo',
+                'tipos_entrada.*.cantidad_disponible.required_if' => 'La cantidad de entradas disponibles es obligatoria para entradas limitadas',
+                'tipos_entrada.*.cantidad_disponible.integer' => 'La cantidad debe ser un número entero',
+                'tipos_entrada.*.cantidad_disponible.min' => 'La cantidad debe ser mayor a 0',
+                'tipos_entrada.*.es_ilimitado.required' => 'Debe especificar si las entradas son ilimitadas',
+                'tipos_entrada.*.es_ilimitado.boolean' => 'El campo es_ilimitado debe ser verdadero o falso'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Procesar la imagen si se proporciona
+            if ($request->hasFile('imagen')) {
+                $imagenPath = $request->file('imagen')->store('eventos', 'public');
+                $evento->imagen = $imagenPath;
+            }
+
+            // Actualizar los campos del evento
+            $updateData = $request->only([
+                'titulo', 'descripcion', 'fecha', 'hora', 
+                'ubicacion', 'categoria', 'es_online', 'enlace_streaming'
+            ]);
+
+            // Mapear campos si es necesario
+            if (isset($updateData['titulo'])) {
+                $evento->nombreEvento = $updateData['titulo'];
+            }
+            if (isset($updateData['fecha'])) {
+                $evento->fechaEvento = $updateData['fecha'];
+            }
+            if (isset($updateData['ubicacion'])) {
+                $evento->lugar = $updateData['ubicacion'];
+            }
+
+            $evento->save();
+
+            // Actualizar tipos de entrada si se proporcionan
+            if (isset($request->tipos_entrada)) {
+                foreach ($request->tipos_entrada as $tipoEntrada) {
+                    if (isset($tipoEntrada['idTipoEntrada'])) {
+                        // Actualizar tipo de entrada existente
+                        $tipoEntradaModel = TipoEntrada::where('idTipoEntrada', $tipoEntrada['idTipoEntrada'])
+                            ->where('idEvento', $evento->idEvento)
+                            ->first();
+
+                        if ($tipoEntradaModel) {
+                            $tipoEntradaModel->update([
+                                'nombre' => $tipoEntrada['nombre'],
+                                'precio' => $tipoEntrada['precio'],
+                                'cantidad_disponible' => $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'],
+                                'descripcion' => $tipoEntrada['descripcion'] ?? null,
+                                'es_ilimitado' => $tipoEntrada['es_ilimitado'],
+                                'activo' => $tipoEntrada['activo'] ?? true
+                            ]);
+                        }
+                    } else {
+                        // Crear nuevo tipo de entrada
+                        TipoEntrada::create([
+                            'idEvento' => $evento->idEvento,
+                            'nombre' => $tipoEntrada['nombre'],
+                            'precio' => $tipoEntrada['precio'],
+                            'cantidad_disponible' => $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'],
+                            'entradas_vendidas' => 0,
+                            'descripcion' => $tipoEntrada['descripcion'] ?? null,
+                            'es_ilimitado' => $tipoEntrada['es_ilimitado'],
+                            'activo' => true
+                        ]);
+                    }
+                }
+            }
+
+            return response()->json([
+                'message' => 'Evento actualizado exitosamente',
+                'evento' => $evento->load('tiposEntrada')
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar evento: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al actualizar el evento',
                 'error' => $e->getMessage()
             ], 500);
         }
