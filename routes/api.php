@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\VentaEntradaController;
 use App\Http\Controllers\Api\OrganizadorFavoritoController;
 use App\Http\Controllers\Api\PdfController;
 use App\Http\Controllers\Api\OrganizadorController;
+use App\Http\Controllers\Api\AdminController;
 
 // Rutas públicas
 Route::post('/register', [AuthController::class, 'register']);
@@ -84,6 +85,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas para generar PDFs
     Route::get('/factura/{id}/pdf', [PdfController::class, 'generarFacturaPdf']);
     Route::get('/entrada/{id}/pdf', [PdfController::class, 'generarEntradaPdf']);
+
+    // Rutas de administrador
+    Route::get('/admin/users', [AdminController::class, 'getAllUsers']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
