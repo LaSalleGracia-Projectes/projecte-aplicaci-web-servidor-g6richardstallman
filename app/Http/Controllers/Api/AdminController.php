@@ -427,4 +427,34 @@ class AdminController extends Controller
             ], 500);
         }
     }
+
+    public function deleteUser($userId)
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+        // Si es organizador, comprobar eventos
+        if ($user->role === 'organizador') {
+            $organizador = $user->organizador;
+            if ($organizador) {
+                $eventos = $organizador->eventos ?? [];
+                foreach ($eventos as $evento) {
+                    foreach ($evento->tiposEntrada as $tipoEntrada) {
+                        if ($tipoEntrada->entradas_vendidas > 0) {
+                            return response()->json([
+                                'message' => 'No se puede eliminar el organizador porque tiene eventos con entradas vendidas'
+                            ], 422);
+                        }
+                    }
+                }
+            }
+        }
+        // Eliminar usuario (cascade en DB elimina relaciones)
+        $user->delete();
+        return response()->json(['message' => 'Usuario eliminado exitosamente']);
+    }
 } 

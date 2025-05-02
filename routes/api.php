@@ -93,6 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/eventos', [AdminController::class, 'getAllEventos']);
     Route::put('/admin/eventos/{idEvento}', [AdminController::class, 'updateEvento']);
     Route::delete('/admin/eventos/{idEvento}', [AdminController::class, 'deleteEvento']);
+    Route::delete('/admin/users/{userId}', [AdminController::class, 'deleteUser']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento
