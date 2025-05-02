@@ -15,29 +15,40 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-        $this->middleware(function ($request, $next) {
-            if (Auth::user()->role !== 'admin') {
-                return response()->json(['message' => 'No autorizado'], 403);
-            }
-            return $next($request);
-        });
-    }
-
     public function getAllUsers()
     {
         try {
-            $users = User::select('idUser', 'nombre', 'apellido1', 'apellido2', 'email', 'role', 'created_at')
+            $users = User::with(['organizador', 'participante'])
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'idUser' => $user->idUser,
+                        'nombre' => $user->nombre,
+                        'apellido1' => $user->apellido1,
+                        'apellido2' => $user->apellido2,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'created_at' => $user->created_at,
+                        'organizador' => $user->organizador ? [
+                            'idOrganizador' => $user->organizador->idOrganizador,
+                            'nombre_organizacion' => $user->organizador->nombre_organizacion,
+                            'telefono_contacto' => $user->organizador->telefono_contacto
+                        ] : null,
+                        'participante' => $user->participante ? [
+                            'idParticipante' => $user->participante->idParticipante,
+                            'dni' => $user->participante->dni,
+                            'telefono' => $user->participante->telefono
+                        ] : null
+                    ];
+                });
 
             return response()->json([
                 'message' => 'Usuarios obtenidos exitosamente',
                 'users' => $users
             ]);
         } catch (\Exception $e) {
+            Log::error('Error al obtener usuarios: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al obtener los usuarios',
                 'error' => $e->getMessage()
@@ -360,6 +371,9 @@ class AdminController extends Controller
 
     public function getAllEventos()
     {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
         try {
             $eventos = Evento::with(['tiposEntrada', 'organizador'])
                 ->orderBy('fechaEvento', 'desc')
@@ -376,13 +390,13 @@ class AdminController extends Controller
                         'imagen' => $evento->imagen ? Storage::url($evento->imagen) : null,
                         'es_online' => $evento->es_online,
                         'enlace_streaming' => $evento->enlace_streaming,
-                        'organizador' => [
+                        'organizador' => $evento->organizador ? [
                             'idUser' => $evento->organizador->idUser,
                             'nombre' => $evento->organizador->nombre,
                             'apellido1' => $evento->organizador->apellido1,
                             'apellido2' => $evento->organizador->apellido2,
                             'email' => $evento->organizador->email
-                        ],
+                        ] : null,
                         'tiposEntrada' => $evento->tiposEntrada->map(function ($tipoEntrada) {
                             return [
                                 'idTipoEntrada' => $tipoEntrada->idTipoEntrada,
@@ -412,5 +426,35 @@ class AdminController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function deleteUser($userId)
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+        // Si es organizador, comprobar eventos
+        if ($user->role === 'organizador') {
+            $organizador = $user->organizador;
+            if ($organizador) {
+                $eventos = $organizador->eventos ?? [];
+                foreach ($eventos as $evento) {
+                    foreach ($evento->tiposEntrada as $tipoEntrada) {
+                        if ($tipoEntrada->entradas_vendidas > 0) {
+                            return response()->json([
+                                'message' => 'No se puede eliminar el organizador porque tiene eventos con entradas vendidas'
+                            ], 422);
+                        }
+                    }
+                }
+            }
+        }
+        // Eliminar usuario (cascade en DB elimina relaciones)
+        $user->delete();
+        return response()->json(['message' => 'Usuario eliminado exitosamente']);
     }
 } 
