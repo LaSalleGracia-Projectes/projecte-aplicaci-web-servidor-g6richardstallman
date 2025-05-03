@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Participante;
 use App\Models\Organizador;
 use App\Models\TipoEntrada;
+use Illuminate\Support\Facades\Storage;
 
 class EventoController extends Controller
 {
@@ -104,6 +105,7 @@ class EventoController extends Controller
                     'imagen_url' => url('/storage/' . $evento->imagen), // Añadir URL completa
                     'categoria' => $evento->categoria,
                     'lugar' => $evento->lugar,
+                    'es_online' => (bool)$evento->es_online,
                     'organizador' => $organizadorData, // Usar los datos transformados
                     'entradas' => $evento->entradas->map(function ($entrada) {
                         return [
@@ -184,6 +186,7 @@ class EventoController extends Controller
                 'imagen' => $evento->imagen,
                 'categoria' => $evento->categoria,
                 'lugar' => $evento->lugar,
+                'es_online' => (bool)$evento->es_online,
                 'isFavorito' => $isFavorito,
                 'organizador' => $organizadorData, // Usar los datos transformados
                 'entradas' => $evento->entradas->map(function ($entrada) {
@@ -284,12 +287,12 @@ class EventoController extends Controller
                 'categoria' => 'required|string|max:100',
                 'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'es_online' => 'required|boolean',
-                'tipos_entrada' => 'required|array|min:1',
-                'tipos_entrada.*.nombre' => 'required|string|max:100',
-                'tipos_entrada.*.precio' => 'required|numeric|min:0',
+                'tipos_entrada' => 'required_if:es_online,false|array|min:1',
+                'tipos_entrada.*.nombre' => 'required_with:tipos_entrada|string|max:100',
+                'tipos_entrada.*.precio' => 'required_with:tipos_entrada|numeric|min:0',
                 'tipos_entrada.*.cantidad_disponible' => 'required_if:tipos_entrada.*.es_ilimitado,false|nullable|integer|min:1',
                 'tipos_entrada.*.descripcion' => 'nullable|string',
-                'tipos_entrada.*.es_ilimitado' => 'required|boolean'
+                'tipos_entrada.*.es_ilimitado' => 'required_with:tipos_entrada|boolean'
             ], [
                 'titulo.required' => 'El título es obligatorio',
                 'descripcion.required' => 'La descripción es obligatoria',
@@ -303,12 +306,11 @@ class EventoController extends Controller
                 'imagen.mimes' => 'La imagen debe ser de tipo: jpeg, png, jpg, gif',
                 'imagen.max' => 'La imagen no puede pesar más de 2MB',
                 'es_online.required' => 'Debe especificar si el evento es online',
-                'tipos_entrada.required' => 'Debe especificar al menos un tipo de entrada',
-                'tipos_entrada.min' => 'Debe especificar al menos un tipo de entrada',
-                'tipos_entrada.*.nombre.required' => 'El nombre del tipo de entrada es obligatorio',
-                'tipos_entrada.*.precio.required' => 'El precio del tipo de entrada es obligatorio',
-                'tipos_entrada.*.precio.numeric' => 'El precio debe ser un número',
-                'tipos_entrada.*.precio.min' => 'El precio no puede ser negativo',
+                'tipos_entrada.required_if' => 'Debe especificar al menos un tipo de entrada para eventos no online',
+                'tipos_entrada.min' => 'Debe especificar al menos un tipo de entrada para eventos no online',
+                'tipos_entrada.*.nombre.required_with' => 'El nombre del tipo de entrada es obligatorio',
+                'tipos_entrada.*.precio.required_with' => 'El precio del tipo de entrada es obligatorio',
+                'tipos_entrada.*.es_ilimitado.required_with' => 'Debe especificar si las entradas son ilimitadas',
                 'tipos_entrada.*.cantidad_disponible.required_if' => 'La cantidad de entradas disponibles es obligatoria para entradas limitadas',
                 'tipos_entrada.*.cantidad_disponible.integer' => 'La cantidad debe ser un número entero',
                 'tipos_entrada.*.cantidad_disponible.min' => 'La cantidad debe ser mayor a 0',
@@ -317,6 +319,37 @@ class EventoController extends Controller
             ]);
             
             Log::info('Validación completada con éxito', ['validated' => $validated]);
+
+            // Calcular aforo automáticamente desde tipos_entrada
+            $calculated_aforo = 0;
+            foreach ($validated['tipos_entrada'] as $tipo) {
+                if (!$tipo['es_ilimitado'] && isset($tipo['cantidad_disponible'])) {
+                    $calculated_aforo += (int)$tipo['cantidad_disponible'];
+                }
+                // Si encuentras uno ilimitado, podrías decidir parar o manejarlo diferente
+                // Por ahora, solo sumamos los limitados.
+            }
+            Log::info('Aforo calculado automáticamente', ['aforo' => $calculated_aforo]);
+
+            // Calcular precioMinimo y precioMaximo automáticamente desde tipos_entrada
+            $minPrice = null;
+            $maxPrice = null;
+            foreach ($validated['tipos_entrada'] as $tipo) {
+                $price = (float)$tipo['precio']; // Convertir a float para comparación
+                if ($minPrice === null || $price < $minPrice) {
+                    $minPrice = $price;
+                }
+                if ($maxPrice === null || $price > $maxPrice) {
+                    $maxPrice = $price;
+                }
+            }
+            // Asignar 0 si no se encontraron precios (para cumplir NOT NULL)
+            $calculated_precioMinimo = ($minPrice !== null) ? $minPrice : 0.00;
+            $calculated_precioMaximo = ($maxPrice !== null) ? $maxPrice : 0.00;
+            Log::info('Precios Min/Max calculados automáticamente', [
+                'min' => $calculated_precioMinimo,
+                'max' => $calculated_precioMaximo
+            ]);
 
             // Obtener el organizador del usuario actual
             $user = $request->user();
@@ -379,11 +412,14 @@ class EventoController extends Controller
                 $evento->nombreEvento = $validated['titulo'];
                 $evento->descripcion = $validated['descripcion'];
                 $evento->fechaEvento = $validated['fecha'];
-                $evento->hora = $validated['hora'];
+                $evento->horaEvento = $validated['hora'];
                 $evento->ubicacion = $validated['ubicacion'];
                 $evento->lugar = $validated['ubicacion']; // Duplicando el valor en ambos campos
                 $evento->categoria = $validated['categoria'];
                 $evento->imagen = $imagenPath;
+                $evento->aforo = $calculated_aforo;
+                $evento->precioMinimo = $calculated_precioMinimo; // Asignar precio mínimo calculado
+                $evento->precioMaximo = $calculated_precioMaximo; // Asignar precio máximo calculado
                 $evento->es_online = $validated['es_online'];
                 $evento->idOrganizador = $organizador->idOrganizador;
                 
@@ -391,84 +427,93 @@ class EventoController extends Controller
                     'nombreEvento' => $evento->nombreEvento,
                     'descripcion' => $evento->descripcion,
                     'fechaEvento' => $evento->fechaEvento,
-                    'hora' => $evento->hora,
+                    'hora' => $evento->horaEvento,
                     'ubicacion' => $evento->ubicacion,
                     'lugar' => $evento->lugar,
                     'categoria' => $evento->categoria,
                     'imagen' => $evento->imagen,
+                    'aforo' => $evento->aforo,
+                    'precioMinimo' => $evento->precioMinimo,
+                    'precioMaximo' => $evento->precioMaximo,
                     'es_online' => $evento->es_online,
                     'idOrganizador' => $evento->idOrganizador
                 ])]);
 
-                try {
-                    $resultado = $evento->save();
-                    Log::info('Resultado de guardar evento', ['resultado' => $resultado, 'id' => $evento->idEvento ?? 'no asignado']);
-                    
-                    if (!$resultado) {
-                        Log::error('Error al guardar el evento: resultado falso');
-                        throw new \Exception('Error al guardar el evento en la base de datos');
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Excepción al guardar evento: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-                    throw new \Exception('Error al guardar el evento: ' . $e->getMessage());
+                Log::info('Intentando guardar evento...'); // Log antes de guardar evento
+                $resultado = $evento->save(); 
+                Log::info('Resultado de guardar evento', ['resultado' => $resultado, 'id' => $evento->idEvento ?? 'no asignado']); // Log después con ID
+                
+                if (!$resultado || !isset($evento->idEvento)) { // Verificar también si se asignó ID
+                    Log::error('Error al guardar el evento: $evento->save() devolvió false o no asignó ID');
+                    throw new \Exception('Error desconocido al guardar el evento en la base de datos'); 
                 }
                 
                 Log::info('Evento guardado con éxito', ['id' => $evento->idEvento]);
 
-                // Crear los tipos de entrada
-                Log::info('Creando tipos de entrada', ['cantidad' => count($validated['tipos_entrada'])]);
-                
-                foreach ($validated['tipos_entrada'] as $index => $tipoEntrada) {
-                    Log::info('Procesando tipo de entrada', ['index' => $index, 'data' => $tipoEntrada]);
+                // Crear los tipos de entrada SOLO si el evento NO es online
+                if (!$validated['es_online']) {
+                    Log::info('Evento no es online, creando tipos de entrada...', ['cantidad' => count($validated['tipos_entrada'] ?? [])]);
                     
-                    try {
-                        $nuevoTipoEntrada = new TipoEntrada();
-                        $nuevoTipoEntrada->idEvento = $evento->idEvento;
-                        $nuevoTipoEntrada->nombre = $tipoEntrada['nombre'];
-                        $nuevoTipoEntrada->precio = $tipoEntrada['precio'];
-                        $nuevoTipoEntrada->cantidad_disponible = $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'];
-                        $nuevoTipoEntrada->entradas_vendidas = 0;
-                        $nuevoTipoEntrada->descripcion = $tipoEntrada['descripcion'] ?? null;
-                        $nuevoTipoEntrada->es_ilimitado = $tipoEntrada['es_ilimitado'];
-                        $nuevoTipoEntrada->activo = true;
+                    // Asegurarse de que tipos_entrada existe antes de iterar (debido a required_if)
+                    if (!empty($validated['tipos_entrada'])) {
+                        foreach ($validated['tipos_entrada'] as $index => $tipoEntrada) {
+                            Log::info('Procesando tipo de entrada', ['index' => $index, 'data' => $tipoEntrada, 'eventoId' => $evento->idEvento]);
+                            
+                            $nuevoTipoEntrada = new TipoEntrada();
+                            $nuevoTipoEntrada->idEvento = $evento->idEvento;
+                            $nuevoTipoEntrada->nombre = $tipoEntrada['nombre'];
+                            $nuevoTipoEntrada->precio = $tipoEntrada['precio'];
+                            $nuevoTipoEntrada->cantidad_disponible = $tipoEntrada['es_ilimitado'] ? null : $tipoEntrada['cantidad_disponible'];
+                            $nuevoTipoEntrada->entradas_vendidas = 0;
+                            $nuevoTipoEntrada->descripcion = $tipoEntrada['descripcion'] ?? null;
+                            $nuevoTipoEntrada->es_ilimitado = $tipoEntrada['es_ilimitado'];
+                            $nuevoTipoEntrada->activo = true;
 
-                        Log::info('Datos del tipo de entrada a guardar', [
-                            'idEvento' => $nuevoTipoEntrada->idEvento,
-                            'nombre' => $nuevoTipoEntrada->nombre,
-                            'precio' => $nuevoTipoEntrada->precio,
-                            'cantidad_disponible' => $nuevoTipoEntrada->cantidad_disponible,
-                            'entradas_vendidas' => $nuevoTipoEntrada->entradas_vendidas,
-                            'descripcion' => $nuevoTipoEntrada->descripcion,
-                            'es_ilimitado' => $nuevoTipoEntrada->es_ilimitado,
-                            'activo' => $nuevoTipoEntrada->activo
-                        ]);
-                        
-                        $resultadoTipo = $nuevoTipoEntrada->save();
-                        Log::info('Resultado de guardar tipo de entrada', ['resultado' => $resultadoTipo, 'id' => $nuevoTipoEntrada->idTipoEntrada ?? 'no asignado']);
-                        
-                        if (!$resultadoTipo) {
-                            Log::error('Error al guardar tipo de entrada: resultado falso');
-                            throw new \Exception('Error al guardar el tipo de entrada');
+                            Log::info('Datos del tipo de entrada a guardar', [
+                                'idEvento' => $nuevoTipoEntrada->idEvento,
+                                'nombre' => $nuevoTipoEntrada->nombre,
+                                'precio' => $nuevoTipoEntrada->precio,
+                                'cantidad_disponible' => $nuevoTipoEntrada->cantidad_disponible,
+                                'entradas_vendidas' => $nuevoTipoEntrada->entradas_vendidas,
+                                'descripcion' => $nuevoTipoEntrada->descripcion,
+                                'es_ilimitado' => $nuevoTipoEntrada->es_ilimitado,
+                                'activo' => $nuevoTipoEntrada->activo
+                            ]);
+                            
+                            $resultadoTipo = $nuevoTipoEntrada->save();
+                            Log::info('Resultado de guardar tipo de entrada', ['resultado' => $resultadoTipo, 'id' => $nuevoTipoEntrada->idTipoEntrada ?? 'no asignado']);
+                            
+                            if (!$resultadoTipo) {
+                                Log::error('Error al guardar tipo de entrada: resultado falso');
+                                throw new \Exception('Error al guardar el tipo de entrada ' . $index);
+                            }
+                            
+                            Log::info('Tipo de entrada guardado con éxito', ['id' => $nuevoTipoEntrada->idTipoEntrada ?? 'desconocido']);
                         }
-                    } catch (\Exception $e) {
-                        Log::error('Excepción al guardar tipo de entrada: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-                        throw new \Exception('Error al guardar tipo de entrada: ' . $e->getMessage());
+                    } else {
+                         Log::info('Evento no es online, pero no se proporcionaron tipos_entrada válidos.');
+                         // Puedes lanzar un error aquí si consideras que esto no debería pasar
+                         // throw new \Exception('Tipos de entrada requeridos para eventos no online.');
                     }
-                    
-                    Log::info('Tipo de entrada guardado con éxito', ['id' => $nuevoTipoEntrada->idTipoEntrada ?? 'desconocido']);
+                } else {
+                    Log::info('Evento es online, no se crearán tipos de entrada.');
                 }
 
                 DB::commit();
                 Log::info('Transacción completada con éxito');
 
-                // Cargar la relación con los tipos de entrada
-                try {
-                    Log::info('Intentando cargar relación tiposEntrada');
-                    $evento->load('tiposEntrada');
-                    Log::info('Relación tiposEntrada cargada', ['cantidad' => count($evento->tiposEntrada)]);
-                } catch (\Exception $e) {
-                    Log::warning('Error al cargar relación tiposEntrada: ' . $e->getMessage());
-                    // Continuar aunque falle la carga de la relación
+                // Cargar la relación con los tipos de entrada SOLO si no es online
+                if (!$validated['es_online']) {
+                    try {
+                        Log::info('Intentando cargar relación tiposEntrada');
+                        $evento->load('tiposEntrada');
+                        Log::info('Relación tiposEntrada cargada', ['cantidad' => count($evento->tiposEntrada ?? [])]);
+                    } catch (\Exception $e) {
+                        Log::warning('Error al cargar relación tiposEntrada: ' . $e->getMessage());
+                    }
+                } else {
+                    // Asegurar que la relación esté vacía si es online
+                    $evento->setRelation('tiposEntrada', collect());
                 }
 
                 $mensaje = 'Evento creado con éxito';
@@ -599,13 +644,24 @@ class EventoController extends Controller
                 $evento->fechaEvento = $validated['fecha'];
             }
             if (isset($validated['hora'])) {
-                $evento->hora = $validated['hora'];
+                $evento->horaEvento = $validated['hora'];
+            }
+            if (isset($validated['ubicacion'])) {
+                $evento->lugar = $validated['ubicacion']; // Actualizar ambos
+                $evento->ubicacion = $validated['ubicacion'];
+            }
+            if (isset($validated['es_online'])) {
+                $evento->es_online = $validated['es_online'];
             }
             // Otros campos que necesites mapear
             $evento->save();
 
             // Procesar la imagen si se proporciona
             if ($request->hasFile('imagen')) {
+                // Opcional: eliminar imagen anterior si existe y no es la por defecto
+                if ($evento->imagen && $evento->imagen !== 'eventos/default.jpg' && Storage::disk('public')->exists($evento->imagen)) {
+                    Storage::disk('public')->delete($evento->imagen);
+                }
                 $imagenPath = $request->file('imagen')->store('eventos', 'public');
                 $validated['imagen'] = $imagenPath;
             }
@@ -718,6 +774,7 @@ class EventoController extends Controller
             $eventosTransformados = $eventos->map(function($evento) {
                 $eventoArray = $evento->toArray();
                 $eventoArray['imagen_url'] = url('/storage/' . $evento->imagen);
+                $eventoArray['es_online'] = (bool)$evento->es_online;
                 return $eventoArray;
             });
 
@@ -819,6 +876,7 @@ class EventoController extends Controller
                     'imagen_url' => url('/storage/' . $evento->imagen),
                     'categoria' => $evento->categoria,
                     'lugar' => $evento->lugar,
+                    'es_online' => (bool)$evento->es_online,
                     'is_favorite' => $isFavorito,
                     'organizador' => $organizadorData, // Usar los datos transformados
                     'tipos_entrada' => $evento->tiposEntrada->map(function ($tipo) {

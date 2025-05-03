@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('categoria');
             $table->string('lugar');
             $table->unsignedBigInteger('idOrganizador');
+            $table->boolean('es_online')->default(false);
             $table->timestamps();
             $table->softDeletes();
 

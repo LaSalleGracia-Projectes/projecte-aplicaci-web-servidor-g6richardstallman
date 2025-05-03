@@ -28,6 +28,10 @@ class Evento extends Model
         'categoria',
         'lugar',
         'idOrganizador',
+        'aforo',
+        'precioMinimo',
+        'precioMaximo',
+        'es_online'
     ];
 
     public function organizador(): BelongsTo

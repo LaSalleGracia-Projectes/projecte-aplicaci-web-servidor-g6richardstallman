@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('telefono_contacto');
             $table->string('direccion_fiscal')->nullable();
             $table->string('cif')->nullable();
-            $table->bigInteger('user_id')->unsigned();
+            $table->unsignedBigInteger('user_id');
             $table->timestamps();
 
             // Relación con cascada
