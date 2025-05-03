@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('eventos', function (Blueprint $table) {
+        Schema::create('evento', function (Blueprint $table) {
             $table->bigIncrements('idEvento');
             $table->string('nombreEvento');
             $table->date('fechaEvento');
@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('lugar');
             $table->unsignedBigInteger('idOrganizador');
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('idOrganizador')
                 ->references('idUser')
@@ -33,6 +34,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('eventos');
+        Schema::dropIfExists('evento');
     }
 }; 

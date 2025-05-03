@@ -20,50 +20,29 @@ class FacturaFactory extends Factory
 
     public function definition()
     {
-        // Verificar que existan participantes, entradas y pagos
-        $this->crearDatosRequeridos();
+        // Asegurar datos requeridos
+        $participante = Participante::inRandomOrder()->first() ?? Participante::factory()->create();
+        $entrada = Entrada::inRandomOrder()->first() ?? Entrada::factory()->create();
+        $pago = Pago::factory()->create();
         
-        // Obtener elementos aleatorios para asociar
-        $participante = Participante::inRandomOrder()->first();
-        $entrada = Entrada::inRandomOrder()->first();
-        $pago = Pago::inRandomOrder()->first();
-        
-        // Obtener información de evento y tipo de entrada si es posible
-        $evento = null;
-        $tipoEntrada = null;
+        // Calcular importes (simplificado, adaptar si es necesario)
         $precio = $this->faker->randomFloat(2, 50, 200);
-        
-        if ($entrada && $entrada->idEvento) {
-            $evento = Evento::find($entrada->idEvento);
-            if ($evento) {
-                $tipoEntrada = TipoEntrada::where('idEvento', $evento->idEvento)->first();
-                if ($tipoEntrada) {
-                    $precio = $tipoEntrada->precio;
-                }
-            }
-        }
-        
-        // Calcular importes
-        $subtotal = round($precio / (1 + VentaEntrada::IVA), 2);
+        $ivaRate = 0.21; // Asumir IVA 21%
+        $subtotal = round($precio / (1 + $ivaRate), 2);
         $impuestos = round($precio - $subtotal, 2);
         $total = $precio;
         
-        // Generar fechas
         $fechaEmision = $this->faker->dateTimeBetween('-1 year', 'now');
         $fechaVencimiento = Carbon::parse($fechaEmision)->addDays(30);
-        
-        // Generar número de factura único con UUID para evitar colisiones
-        $anio = Carbon::parse($fechaEmision)->format('Y');
-        $uuid = Str::uuid()->toString();
-        $numeroFactura = $anio . '-' . substr($uuid, 0, 5);
-        
+        $numeroFactura = Carbon::parse($fechaEmision)->format('Y') . '-' . strtoupper(Str::random(6));
+
         return [
             'numero_factura' => $numeroFactura,
             'fecha_emision' => $fechaEmision,
             'fecha_vencimiento' => $fechaVencimiento,
             'subtotal' => $subtotal,
             'impostos' => $impuestos,
-            'descuento' => 0, // Sin descuento por defecto
+            'descuento' => 0,
             'montoTotal' => $total,
             'estado' => $this->faker->randomElement(['emitida', 'pagada', 'cancelada']),
             'nombre_fiscal' => $this->faker->company,
@@ -71,53 +50,10 @@ class FacturaFactory extends Factory
             'direccion_fiscal' => $this->faker->address,
             'metodo_pago' => $this->faker->randomElement(['tarjeta', 'transferencia', 'paypal']),
             'notas' => $this->faker->optional(0.7)->sentence(),
-            'idParticipante' => $participante ? $participante->idParticipante : Participante::factory(),
-            'idEntrada' => $entrada ? $entrada->idEntrada : Entrada::factory(),
-            'idPago' => $pago ? $pago->idPago : Pago::factory()
+            'idParticipante' => $participante->idParticipante,
+            'idEntrada' => $entrada->idEntrada,
+            'idPago' => $pago->idPago
         ];
-    }
-    
-    /**
-     * Crear datos requeridos si no existen
-     */
-    private function crearDatosRequeridos()
-    {
-        // Verificar y crear participantes si es necesario
-        if (Participante::count() == 0) {
-            Participante::factory(5)->create();
-        }
-        
-        // Verificar y crear entradas si es necesario
-        if (Entrada::count() == 0) {
-            // Crear eventos con sus tipos de entrada si es necesario
-            if (Evento::count() == 0) {
-                Evento::factory(3)->create();
-            }
-            
-            $eventos = Evento::all();
-            
-            foreach ($eventos as $evento) {
-                // Crear tipos de entrada para el evento si es necesario
-                if (TipoEntrada::where('idEvento', $evento->idEvento)->count() == 0) {
-                    TipoEntrada::factory(2)->create([
-                        'idEvento' => $evento->idEvento
-                    ]);
-                }
-                
-                // Crear entradas para este evento
-                for ($i = 0; $i < 3; $i++) {
-                    Entrada::factory()->create([
-                        'idEvento' => $evento->idEvento,
-                        'fecha_venta' => now()->subDays(rand(1, 30))
-                    ]);
-                }
-            }
-        }
-        
-        // Verificar y crear pagos si es necesario
-        if (Pago::count() == 0) {
-            Pago::factory(5)->create();
-        }
     }
     
     /**

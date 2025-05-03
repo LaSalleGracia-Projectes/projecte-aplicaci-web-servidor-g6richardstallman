@@ -14,24 +14,25 @@ class Evento extends Model
 
     protected $table = 'evento';
     protected $primaryKey = 'idEvento';
+    public $incrementing = true;
+    protected $keyType = 'int';
     public $timestamps = true;
 
     protected $fillable = [
         'nombreEvento',
         'fechaEvento',
+        'horaEvento',
         'descripcion',
-        'hora',
         'ubicacion',
         'imagen',
         'categoria',
         'lugar',
         'idOrganizador',
-        'es_online'
     ];
 
     public function organizador(): BelongsTo
     {
-        return $this->belongsTo(Organizador::class, 'idOrganizador', 'idOrganizador');
+        return $this->belongsTo(User::class, 'idOrganizador', 'idUser');
     }
 
     public function entradas(): HasMany
@@ -55,5 +56,11 @@ class Evento extends Model
     public function esFavoritoDe($idParticipante): bool
     {
         return $this->favoritos()->where('idParticipante', $idParticipante)->exists();
+    }
+
+    // Relación con Valoracion
+    public function valoraciones()
+    {
+        return $this->hasMany(Valoracion::class, 'idEvento', 'idEvento');
     }
 }

@@ -11,10 +11,11 @@ class PagoFactory extends Factory
 
     public function definition()
     {
+        // Generar solo los campos que existen en la migración de la tabla 'pago'
         return [
             'nombre' => $this->faker->name,
             'contacto' => $this->faker->name,
-            'telefono' => $this->faker->phoneNumber,
+            'telefono' => $this->faker->numerify('#########'), // Ajustado para 9 dígitos
             'email' => $this->faker->unique()->safeEmail
         ];
     }
