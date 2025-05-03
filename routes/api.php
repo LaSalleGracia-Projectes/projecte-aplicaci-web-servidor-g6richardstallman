@@ -94,6 +94,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/eventos/{idEvento}', [AdminController::class, 'updateEvento']);
     Route::delete('/admin/eventos/{idEvento}', [AdminController::class, 'deleteEvento']);
     Route::delete('/admin/users/{userId}', [AdminController::class, 'deleteUser']);
+
+    // Nueva ruta para obtener solo el avatar del usuario autenticado
+    Route::get('/avatar', [AuthController::class, 'getAvatar']);
 });
 
 // Ruta pública para obtener tipos de entrada de un evento

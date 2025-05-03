@@ -22,3 +22,10 @@ yarn-error.log
 /.vscode
 /.zed
 ./vendor/
+.php-cs-fixer.cache
+.php-cs-fixer.lock
+.php-cs-fixer.dist.php
+.php-cs-fixer.dist.php.cache
+.php-cs-fixer.dist.php.lock
+.php-cs-fixer.dist.php.cache.lock
+storage/logs/*
