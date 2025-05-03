@@ -93,13 +93,24 @@ class AuthController extends Controller
                 }
             }
 
+            // Generar avatar automático
+            $avatarUrl = null;
+            if ($validated['role'] === 'participante') {
+                $iniciales = strtoupper(substr($validated['nombre'], 0, 1) . substr($validated['apellido1'], 0, 1));
+                $avatarUrl = 'https://ui-avatars.com/api/?name=' . $iniciales . '&background=0D8ABC&color=fff&size=256';
+            } elseif ($validated['role'] === 'organizador') {
+                $iniciales = strtoupper(substr($validated['nombre_organizacion'], 0, 2));
+                $avatarUrl = 'https://ui-avatars.com/api/?name=' . $iniciales . '&background=0D8ABC&color=fff&size=256';
+            }
+
             $user = User::create([
                 'nombre' => $validated['nombre'],
                 'apellido1' => $validated['apellido1'],
                 'apellido2' => $validated['apellido2'] ?? null,
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
-                'role' => $validated['role']
+                'role' => $validated['role'],
+                'avatar' => $avatarUrl
             ]);
 
             // Enviar correo de confirmación
@@ -337,6 +348,12 @@ class AuthController extends Controller
                 'apellido2' => $user->apellido2,
                 'email' => $user->email,
                 'role' => $user->role,
+                'avatar' => $user->avatar,
+                'avatar_url' => (filter_var($user->avatar, FILTER_VALIDATE_URL))
+                    ? $user->avatar
+                    : ($user->avatar 
+                        ? url('/storage/' . $user->avatar) 
+                        : url('/storage/avatars/default_avatar.png')),
                 'tipo_usuario' => $user->role === 'participante' ? 'Participante' : 'Organizador'
             ];
 
@@ -346,6 +363,11 @@ class AuthController extends Controller
                 if ($participante) {
                     $profileData['dni'] = $participante->dni;
                     $profileData['telefono'] = $participante->telefono;
+                }
+                $organizador = Organizador::where('user_id', $user->idUser)->first();
+                if ($organizador) {
+                    $profileData['nombre_organizacion'] = $organizador->nombre_organizacion;
+                    $profileData['telefono_contacto'] = $organizador->telefono_contacto;
                 }
             } elseif ($user->role === 'organizador') {
                 $organizador = Organizador::where('user_id', $user->idUser)->first();
@@ -362,7 +384,7 @@ class AuthController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error al obtener perfil: ' . $e->getMessage());
+            \Log::error('Error al obtener perfil: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Error al obtener el perfil',
                 'message' => 'No se pudo recuperar la información del perfil',
@@ -831,5 +853,25 @@ class AuthController extends Controller
         
         // Otros formatos válidos (máximo 15 caracteres según API)
         return strlen($telefono) <= 15;
+    }
+
+    public function getAvatar(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'error' => 'No autorizado',
+                'message' => 'Usuario no autenticado',
+                'status' => 'error'
+            ], 401);
+        }
+        return response()->json([
+            'avatar' => $user->avatar,
+            'avatar_url' => (filter_var($user->avatar, FILTER_VALIDATE_URL))
+                ? $user->avatar
+                : ($user->avatar 
+                    ? url('/storage/' . $user->avatar) 
+                    : url('/storage/avatars/default_avatar.png')),
+        ]);
     }
 }

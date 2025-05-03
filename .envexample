@@ -1,6 +1,6 @@
 APP_NAME=Laravel
 APP_ENV=local
-APP_KEY=base64:rcMflWb+EQEK+hQqmXKl56xaoORRbBM3XoXBXhtfllQ=
+APP_KEY=base64:07blUccNwZroJUgdKZ8muANM+t4pP98hiuEvG2pI6Ps=
 APP_DEBUG=true
 APP_TIMEZONE=UTC
 APP_URL=http://localhost
@@ -45,14 +45,14 @@ REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=null
 REDIS_PORT=6379
 
-MAIL_MAILER=log
-MAIL_HOST=127.0.0.1
-MAIL_PORT=2525
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_ENCRYPTION=null
-MAIL_FROM_ADDRESS="hello@example.com"
-MAIL_FROM_NAME="${APP_NAME}"
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=eventflix.app@gmail.com
+MAIL_PASSWORD=sjksmvtxzldbumsw
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=eventflix.app@gmail.com
+MAIL_FROM_NAME="Eventflix"
 
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
@@ -62,5 +62,6 @@ AWS_USE_PATH_STYLE_ENDPOINT=false
 
 VITE_APP_NAME="${APP_NAME}"
 
-
-
+GOOGLE_CLIENT_ID=221162564666-vrvqp3fveq1obppc8dpi90gv6i9niklm.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
