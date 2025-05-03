@@ -71,7 +71,6 @@ class EventoController extends Controller
             // Obtener todos los eventos con sus relaciones y ordenarlos por fecha
             $eventos = Evento::with([
                 'organizador', 
-                'organizador.user',
                 'entradas'
             ])
             ->orderBy('fechaEvento', 'asc') // Ordenar por fecha (ascendente - próximos primero)
@@ -79,6 +78,21 @@ class EventoController extends Controller
 
             // Transformar los datos para la respuesta
             $eventosData = $eventos->map(function ($evento) {
+                // Asegurarse de que el organizador (User) no sea null antes de acceder a sus propiedades
+                $organizadorData = null;
+                if ($evento->organizador) {
+                    $organizadorData = [
+                        // Usar directamente las propiedades del User model ($evento->organizador)
+                        'idUser' => $evento->organizador->idUser,
+                        'nombre' => $evento->organizador->nombre,
+                        'apellido1' => $evento->organizador->apellido1,
+                        'apellido2' => $evento->organizador->apellido2,
+                        'email' => $evento->organizador->email
+                        // Nota: nombre_organizacion y telefono_contacto no están en el User model estándar.
+                        // Si los necesitas, deben estar en el modelo User o venir de otra relación.
+                    ];
+                }
+
                 return [
                     'id' => $evento->idEvento,
                     'nombreEvento' => $evento->nombreEvento,
@@ -90,18 +104,7 @@ class EventoController extends Controller
                     'imagen_url' => url('/storage/' . $evento->imagen), // Añadir URL completa
                     'categoria' => $evento->categoria,
                     'lugar' => $evento->lugar,
-                    'organizador' => [
-                        'id' => $evento->organizador->idOrganizador,
-                        'nombre_organizacion' => $evento->organizador->nombre_organizacion,
-                        'telefono_contacto' => $evento->organizador->telefono_contacto,
-                        'user' => [
-                            'id' => $evento->organizador->user->idUser,
-                            'nombre' => $evento->organizador->user->nombre,
-                            'apellido1' => $evento->organizador->user->apellido1,
-                            'apellido2' => $evento->organizador->user->apellido2,
-                            'email' => $evento->organizador->user->email
-                        ]
-                    ],
+                    'organizador' => $organizadorData, // Usar los datos transformados
                     'entradas' => $evento->entradas->map(function ($entrada) {
                         return [
                             'id' => $entrada->idEntrada,
@@ -138,7 +141,6 @@ class EventoController extends Controller
             // Buscar el evento con sus relaciones
             $evento = Evento::with([
                 'organizador', 
-                'organizador.user',
                 'entradas'
             ])->find($id);
 
@@ -160,6 +162,18 @@ class EventoController extends Controller
             }
 
             // Transformar los datos para la respuesta
+            $organizadorData = null;
+            if ($evento->organizador) {
+                $organizadorData = [
+                    'idUser' => $evento->organizador->idUser,
+                    'nombre' => $evento->organizador->nombre,
+                    'apellido1' => $evento->organizador->apellido1,
+                    'apellido2' => $evento->organizador->apellido2,
+                    'email' => $evento->organizador->email
+                    // Nota: nombre_organizacion y telefono_contacto no están aquí.
+                ];
+            }
+            
             $eventoData = [
                 'id' => $evento->idEvento,
                 'nombreEvento' => $evento->nombreEvento,
@@ -171,18 +185,7 @@ class EventoController extends Controller
                 'categoria' => $evento->categoria,
                 'lugar' => $evento->lugar,
                 'isFavorito' => $isFavorito,
-                'organizador' => [
-                    'id' => $evento->organizador->idOrganizador,
-                    'nombre_organizacion' => $evento->organizador->nombre_organizacion,
-                    'telefono_contacto' => $evento->organizador->telefono_contacto,
-                    'user' => [
-                        'id' => $evento->organizador->user->idUser,
-                        'nombre' => $evento->organizador->user->nombre,
-                        'apellido1' => $evento->organizador->user->apellido1,
-                        'apellido2' => $evento->organizador->user->apellido2,
-                        'email' => $evento->organizador->user->email
-                    ]
-                ],
+                'organizador' => $organizadorData, // Usar los datos transformados
                 'entradas' => $evento->entradas->map(function ($entrada) {
                     return [
                         'id' => $entrada->idEntrada,
@@ -768,7 +771,6 @@ class EventoController extends Controller
             // Obtener los eventos de la categoría especificada
             $eventos = Evento::with([
                 'organizador', 
-                'organizador.user',
                 'tiposEntrada'
             ])
             ->where('categoria', $categoriaNormalizada)
@@ -792,6 +794,19 @@ class EventoController extends Controller
                         ->where('idEvento', $evento->idEvento)
                         ->exists();
                 }
+
+                // Asegurarse de que el organizador (User) no sea null
+                $organizadorData = null;
+                if ($evento->organizador) {
+                     $organizadorData = [
+                        'idUser' => $evento->organizador->idUser,
+                        'nombre' => $evento->organizador->nombre,
+                        'apellido1' => $evento->organizador->apellido1,
+                        'apellido2' => $evento->organizador->apellido2,
+                        'email' => $evento->organizador->email
+                        // Nota: nombre_organizacion y telefono_contacto no están aquí.
+                    ];
+                }
                 
                 return [
                     'id' => $evento->idEvento,
@@ -805,18 +820,7 @@ class EventoController extends Controller
                     'categoria' => $evento->categoria,
                     'lugar' => $evento->lugar,
                     'is_favorite' => $isFavorito,
-                    'organizador' => [
-                        'id' => $evento->organizador->idOrganizador,
-                        'nombre_organizacion' => $evento->organizador->nombre_organizacion,
-                        'telefono_contacto' => $evento->organizador->telefono_contacto,
-                        'user' => [
-                            'id' => $evento->organizador->user->idUser,
-                            'nombre' => $evento->organizador->user->nombre,
-                            'apellido1' => $evento->organizador->user->apellido1,
-                            'apellido2' => $evento->organizador->user->apellido2,
-                            'email' => $evento->organizador->user->email
-                        ]
-                    ],
+                    'organizador' => $organizadorData, // Usar los datos transformados
                     'tipos_entrada' => $evento->tiposEntrada->map(function ($tipo) {
                         return [
                             'id' => $tipo->idTipoEntrada,
