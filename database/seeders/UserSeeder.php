@@ -18,9 +18,9 @@ class UserSeeder extends Seeder
             ->organizador()
             ->create();
 
-        // Crear 10 participantes
+        // Crear 5 participantes
         User::factory()
-            ->count(10)
+            ->count(5)
             ->participante()
             ->create();
     }

@@ -21,14 +21,14 @@ class FavoritoFactory extends Factory
      */
     public function definition(): array
     {
-        // Obtener un participante y evento aleatorios
+        // Asegurar que existen participantes y eventos
         $participante = Participante::inRandomOrder()->first() ?? Participante::factory()->create();
         $evento = Evento::inRandomOrder()->first() ?? Evento::factory()->create();
         
         return [
             'idParticipante' => $participante->idParticipante,
             'idEvento' => $evento->idEvento,
-            'fechaAgregado' => $this->faker->dateTimeBetween('-1 month', 'now')
+            // 'fechaAgregado' se asigna por defecto en la migración con useCurrent()
         ];
     }
 } 

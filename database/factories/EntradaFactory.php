@@ -12,10 +12,15 @@ class EntradaFactory extends Factory
 
     public function definition()
     {
+        // Asegurar que existe un evento al que asociar la entrada
+        $evento = Evento::inRandomOrder()->first() ?? Evento::factory()->create();
+        
         return [
             'fecha_venta' => $this->faker->dateTimeBetween('-1 year', 'now'),
             'nombre_persona' => $this->faker->name,
-            'idEvento' => Evento::factory()->create()->idEvento
+            'idEvento' => $evento->idEvento, // Asignar evento existente
+            // idTipoEntrada y otros campos se deben añadir si son necesarios
+            // y están en la migración de entrada
         ];
     }
 }

@@ -13,9 +13,10 @@ class ParticipanteFactory extends Factory
     public function definition()
     {
         return [
-            'dni' => $this->faker->unique()->regexify('[0-9]{8}[A-Z]'),
-            'telefono' => $this->faker->phoneNumber,
-            'idUser' => User::factory()->create(['role' => 'participante'])->idUser
+            'dni' => fake()->unique()->regexify('[0-9]{8}[A-Z]'),
+            'telefono' => fake()->numerify('#########'), // 9 dígitos
+            'direccion' => fake()->address(), // Añadir dirección
+            // Se asume que idUser será proporcionado al llamar a create()
         ];
     }
 }

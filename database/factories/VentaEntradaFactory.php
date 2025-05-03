@@ -16,18 +16,21 @@ class VentaEntradaFactory extends Factory
     public function definition()
     {
         $precio = $this->faker->randomFloat(2, 20, 100);
-        
-        // Calculamos los impuestos usando la constante IVA definida en el modelo
-        $impuestos = round($precio * VentaEntrada::IVA, 2);
+        $ivaRate = 0.21; // Asumir IVA 21%
+        $impuestos = round($precio * $ivaRate, 2); // Calcular impuesto sobre el precio
+        // Asegurar que existen Entrada, Pago, Participante
+        $entrada = Entrada::inRandomOrder()->first() ?? Entrada::factory()->create();
+        $pago = Pago::inRandomOrder()->first() ?? Pago::factory()->create();
+        $participante = Participante::inRandomOrder()->first() ?? Participante::factory()->create();
 
         return [
             'estado_pago' => $this->faker->randomElement(['Pagado', 'Pendiente']),
             'precio' => $precio,
             'impuestos' => $impuestos,
             'fecha_compra' => Carbon::now()->subDays(rand(1, 30)),
-            'idEntrada' => Entrada::factory(),
-            'idPago' => Pago::factory(),
-            'idParticipante' => Participante::factory()
+            'idEntrada' => $entrada->idEntrada,
+            'idPago' => $pago->idPago,
+            'idParticipante' => $participante->idParticipante
         ];
     }
     
