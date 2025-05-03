@@ -365,9 +365,13 @@ class VentaEntradaController extends Controller
         try {
             // Obtener el participante asociado al usuario
             $user = $request->user();
+            // Log::info('Listar Compras - Usuario autenticado ID: ' . ($user ? $user->idUser : 'NULL')); // Log desactivado
+            
             $participante = Participante::where('idUser', $user->idUser)->first();
+            // Log::info('Listar Compras - Participante encontrado: ', [$participante ? $participante->toArray() : 'NULL']); // Log desactivado
             
             if (!$participante) {
+                // Log::warning('Listar Compras - No se encontró participante para User ID: ' . $user->idUser); // Log desactivado
                 return response()->json([
                     'error' => 'Perfil no encontrado',
                     'message' => 'No se encontró el perfil de participante',
@@ -377,8 +381,8 @@ class VentaEntradaController extends Controller
             
             // Obtener todas las compras del participante
             $compras = VentaEntrada::where('idParticipante', $participante->idParticipante)
-                ->with(['entrada', 'entrada.evento'])
-                ->orderBy('fecha_compra', 'desc')
+                ->with(['entrada', 'entrada.evento']) // Restauramos with
+                ->orderBy('fecha_compra', 'desc') // Restauramos orderBy
                 ->get();
             
             // Agrupar compras por evento para mejor presentación
@@ -442,7 +446,7 @@ class VentaEntradaController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            Log::error('Error al listar compras: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('Error al listar compras: ' . $e->getMessage() . "\\n" . $e->getTraceAsString());
             return response()->json([
                 'error' => 'Error al obtener las compras',
                 'message' => 'No se pudieron recuperar sus compras: ' . $e->getMessage(),
