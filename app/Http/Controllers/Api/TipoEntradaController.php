@@ -244,26 +244,119 @@ class TipoEntradaController extends Controller
         }
     }
 
-    public function index(Request $request, $idEvento)
+    public function index($idEvento)
     {
         try {
-            $evento = Evento::findOrFail($idEvento);
-            
-            $tiposEntrada = TipoEntrada::where('idEvento', $idEvento)
-                                     ->where('activo', true)
-                                     ->get();
+            // Cargar el evento con las relaciones necesarias
+            $evento = Evento::with(['tiposEntrada', 'organizador', 'organizador.organizador'])->findOrFail($idEvento);
+
+            // Extraer los tipos de entrada
+            $tiposEntrada = $evento->tiposEntrada->map(function ($tipo) {
+                // Calcular disponibilidad si no es ilimitado
+                $disponibilidad = $tipo->es_ilimitado ? null : ($tipo->cantidad_disponible - $tipo->entradas_vendidas);
+                $tipoData = $tipo->toArray();
+                $tipoData['disponibilidad'] = $disponibilidad;
+                return $tipoData;
+            });
 
             return response()->json([
-                'message' => 'Tipos de entrada recuperados con éxito',
-                'data' => $tiposEntrada,
+                'message' => 'Datos del evento y tipos de entrada recuperados con éxito',
+                'evento' => $evento,
+                'tipos_entrada' => $tiposEntrada,
                 'status' => 'success'
-            ]);
+            ], 200);
 
-        } catch (\Exception $e) {
-            Log::error('Error al recuperar tipos de entrada: ' . $e->getMessage());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
-                'error' => 'Error al recuperar los tipos de entrada',
-                'message' => 'No se pudieron recuperar los tipos de entrada',
+                'error' => 'Evento no encontrado',
+                'message' => 'No se encontró el evento con el ID proporcionado.',
+                'status' => 'error'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al recuperar tipos de entrada y organizador: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error interno del servidor',
+                'message' => 'Ocurrió un error al recuperar la información.',
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    public function getEventoDetalle(Request $request, $idEvento)
+    {
+        try {
+            // Cargar el evento con todas sus relaciones necesarias
+            $evento = Evento::with(['tiposEntrada', 'organizador'])->findOrFail($idEvento);
+            
+            // Verificar si el evento es favorito del usuario (falso por defecto)
+            $isFavorito = false;
+            if ($request->user()) {
+                // Implementación para verificar favoritos cuando sea necesario
+                // $isFavorito = $request->user()->favoritos()->where('idEvento', $idEvento)->exists();
+            }
+            
+            // Obtener los tipos de entrada con el formato exacto solicitado
+            $tiposEntrada = $evento->tiposEntrada->map(function ($tipo) {
+                return [
+                    'id' => $tipo->idTipoEntrada,
+                    'nombre' => $tipo->nombre,
+                    'precio' => $tipo->precio,
+                    'descripcion' => $tipo->descripcion ?? '',
+                    'cantidadDisponible' => $tipo->es_ilimitado ? null : $tipo->cantidad_disponible,
+                    'entradasVendidas' => $tipo->entradas_vendidas,
+                    'esIlimitado' => (bool)$tipo->es_ilimitado
+                ];
+            });
+            
+            // Preparar datos del organizador con el formato solicitado
+            $organizadorData = null;
+            if ($evento->organizador) {
+                $organizadorData = [
+                    'id' => $evento->organizador->idUser,
+                    'nombre' => $evento->organizador->nombre ?? 'Desconocido',
+                    'user' => [
+                        'id' => $evento->organizador->idUser,
+                        'nombre' => $evento->organizador->nombre,
+                        'email' => $evento->organizador->email
+                    ]
+                ];
+            }
+            
+            // Preparar la respuesta exactamente como la solicitada
+            // Usamos los nombres correctos según la estructura de la base de datos
+            $response = [
+                'evento' => [
+                    'id' => $evento->idEvento,
+                    'titulo' => $evento->nombreEvento,
+                    'descripcion' => $evento->descripcion,
+                    'fechaEvento' => $evento->fechaEvento ?? '',
+                    'hora' => $evento->horaEvento ?? '',
+                    'ubicacion' => $evento->ubicacion,
+                    'categoria' => $evento->categoria,
+                    'imagen' => $evento->imagen ?? 'eventos/default.jpg',
+                    'esOnline' => (bool)$evento->es_online,
+                    'isFavorito' => $isFavorito,
+                    'organizador' => $organizadorData,
+                    'tipos_entrada' => $tiposEntrada
+                ],
+                'status' => 'success'
+            ];
+            
+            return response()->json($response, 200);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Evento no encontrado: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Evento no encontrado',
+                'message' => 'No se encontró el evento con el ID proporcionado.',
+                'status' => 'error'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al recuperar detalles del evento: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json([
+                'error' => 'Error interno del servidor',
+                'message' => 'Ocurrió un error al recuperar la información del evento.',
                 'status' => 'error'
             ], 500);
         }

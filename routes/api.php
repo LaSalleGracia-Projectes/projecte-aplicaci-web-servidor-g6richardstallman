@@ -65,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas para venta de entradas
     Route::post('/compras', [VentaEntradaController::class, 'comprar']);
+    Route::post('/compras/multiple', [VentaEntradaController::class, 'compraMultiple']);
     Route::get('/compras', [VentaEntradaController::class, 'listarCompras']);
     
     // Nueva ruta para ver detalle de una compra específica
@@ -101,6 +102,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Ruta pública para obtener tipos de entrada de un evento
 Route::get('/eventos/{idEvento}/tipos-entrada', [TipoEntradaController::class, 'index']);
+
+// Ruta para obtener detalles específicos de un evento para la aplicación Kotlin
+Route::get('/eventos/{idEvento}/detalle', [TipoEntradaController::class, 'getEventoDetalle']);
 
 // Rutas para autenticación con Google
 Route::match(['get', 'post'], '/auth/google', [GoogleAuthController::class, 'redirectToGoogle']);

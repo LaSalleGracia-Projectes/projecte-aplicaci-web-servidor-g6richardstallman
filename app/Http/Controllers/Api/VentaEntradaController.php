@@ -769,4 +769,341 @@ class VentaEntradaController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Realizar la compra de múltiples entradas para un evento
+     * Permite comprar varias entradas del mismo tipo o de diferentes tipos en una sola transacción
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function compraMultiple(Request $request)
+    {
+        // Iniciar log
+        Log::info('Iniciando proceso de compra múltiple', ['request' => $request->except('token')]);
+
+        try {
+            // Validación de la solicitud
+            $validated = $request->validate([
+                'idEvento' => 'required|exists:evento,idEvento',
+                'items' => 'required|array|min:1',
+                'items.*.idTipoEntrada' => 'required|exists:tipo_entrada,idTipoEntrada',
+                'items.*.cantidad' => 'required|integer|min:1',
+                'emitir_factura' => 'sometimes|boolean',
+                'metodo_pago' => 'sometimes|string'
+            ]);
+
+            // Obtener el usuario autenticado
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'No autorizado',
+                    'message' => 'Debe iniciar sesión para realizar una compra',
+                    'status' => 'error'
+                ], 401);
+            }
+
+            // Verificar si el usuario es un participante
+            if ($user->role !== 'participante') {
+                return response()->json([
+                    'error' => 'Acceso denegado',
+                    'message' => 'Solo los participantes pueden comprar entradas',
+                    'status' => 'error'
+                ], 403);
+            }
+
+            // Obtener el participante y sus datos
+            $participante = Participante::where('idUser', $user->idUser)
+                ->with('user')
+                ->first();
+            
+            if (!$participante) {
+                return response()->json([
+                    'error' => 'Perfil incompleto',
+                    'message' => 'No se encontró el perfil de participante asociado a su cuenta',
+                    'status' => 'error'
+                ], 404);
+            }
+            
+            // Datos del comprador
+            $nombreComprador = $user->nombre . ' ' . $user->apellido1;
+            $emailComprador = $user->email;
+
+            // Comprobar que el evento existe y no ha pasado
+            $evento = Evento::findOrFail($validated['idEvento']);
+            
+            if (Carbon::parse($evento->fechaEvento)->isPast()) {
+                return response()->json([
+                    'error' => 'Evento no disponible',
+                    'message' => 'No se pueden comprar entradas para un evento que ya ha pasado',
+                    'status' => 'error'
+                ], 400);
+            }
+
+            // Iniciar transacción DB
+            DB::beginTransaction();
+            
+            try {
+                // Calcular el total y verificar disponibilidad de entradas
+                $total = 0;
+                $detallesCompra = [];
+                $entradasCompradas = [];
+                
+                // Verificar disponibilidad y calcular total
+                foreach ($validated['items'] as $item) {
+                    $tipoEntrada = TipoEntrada::findOrFail($item['idTipoEntrada']);
+                    
+                    // Verificar que pertenece al evento solicitado
+                    if ($tipoEntrada->idEvento != $validated['idEvento']) {
+                        throw new \Exception("El tipo de entrada {$tipoEntrada->nombre} no pertenece al evento seleccionado");
+                    }
+                    
+                    // Verificar disponibilidad
+                    if (!$tipoEntrada->es_ilimitado && 
+                        ($tipoEntrada->entradas_vendidas + $item['cantidad'] > $tipoEntrada->cantidad_disponible)) {
+                        throw new \Exception("No hay suficientes entradas disponibles de tipo '{$tipoEntrada->nombre}'");
+                    }
+                    
+                    // Calcular subtotal
+                    $subtotal = $tipoEntrada->precio * $item['cantidad'];
+                    
+                    // Guardar detalles para la respuesta
+                    $detallesCompra[] = [
+                        'tipo' => $tipoEntrada->nombre,
+                        'precio_unitario' => $tipoEntrada->precio,
+                        'cantidad' => $item['cantidad'],
+                        'subtotal' => $subtotal,
+                        'idTipoEntrada' => $tipoEntrada->idTipoEntrada
+                    ];
+                    
+                    $total += $subtotal;
+                }
+                
+                // Crear el registro de pago
+                $pago = Pago::firstOrCreate(
+                    ['email' => $emailComprador],
+                    [
+                        'nombre' => $nombreComprador,
+                        'contacto' => $nombreComprador,
+                        'telefono' => $participante->telefono ?? '',
+                        'email' => $emailComprador
+                    ]
+                );
+                
+                // Procesar el pago
+                $pagoExitoso = $this->procesarPago($total, [
+                    'nombre' => $nombreComprador, 
+                    'email' => $emailComprador
+                ]);
+                
+                if (!$pagoExitoso) {
+                    throw new \Exception('Error al procesar el pago. Por favor, intente con otro método de pago.');
+                }
+                
+                // Procesar cada tipo de entrada comprado
+                foreach ($validated['items'] as $item) {
+                    $tipoEntrada = TipoEntrada::findOrFail($item['idTipoEntrada']);
+                    
+                    // Actualizar cantidad de entradas vendidas
+                    $tipoEntrada->entradas_vendidas += $item['cantidad'];
+                    $tipoEntrada->save();
+                    
+                    // Crear las entradas individuales
+                    for ($i = 0; $i < $item['cantidad']; $i++) {
+                        $entrada = new Entrada();
+                        $entrada->fecha_venta = Carbon::now();
+                        $entrada->nombre_persona = $nombreComprador;
+                        $entrada->idEvento = $validated['idEvento'];
+                        $entrada->idTipoEntrada = $item['idTipoEntrada']; 
+                        $entrada->estado = 'disponible'; 
+                        $entrada->precio = $tipoEntrada->precio;
+                        
+                        // Generar un código único
+                        $codigo = 'ENT-' . $validated['idEvento'] . '-' . $item['idTipoEntrada'] . '-' . uniqid();
+                        
+                        // Verificar si existe algún código igual en la base de datos
+                        while (Entrada::where('codigo', $codigo)->exists()) {
+                            $codigo = 'ENT-' . $validated['idEvento'] . '-' . $item['idTipoEntrada'] . '-' . uniqid();
+                        }
+                        
+                        $entrada->codigo = $codigo;
+                        $entrada->save();
+                        
+                        // Guardar relación entre entrada y participante
+                        $ventaEntrada = new VentaEntrada();
+                        $ventaEntrada->idEntrada = $entrada->idEntrada;
+                        $ventaEntrada->idParticipante = $participante->idParticipante;
+                        $ventaEntrada->fecha_compra = Carbon::now();
+                        $ventaEntrada->estado_pago = 'Pagado';
+                        $ventaEntrada->idPago = $pago->idPago;
+                        
+                        // Asignar precio y calcular automáticamente impuestos
+                        $ventaEntrada->setPrecioAndCalculateValues($tipoEntrada->precio);
+                        $ventaEntrada->save();
+                        
+                        $entradasCompradas[] = [
+                            'idEntrada' => $entrada->idEntrada,
+                            'idVentaEntrada' => $ventaEntrada->idVentaEntrada,
+                            'tipo' => $tipoEntrada->nombre,
+                            'precio' => $tipoEntrada->precio,
+                            'codigo' => $codigo,
+                            'impuestos' => $ventaEntrada->impuestos
+                        ];
+                    }
+                }
+                
+                // Crear factura si se solicitó
+                $facturaId = null;
+                if (isset($validated['emitir_factura']) && $validated['emitir_factura']) {
+                    // Calcular valores para la factura
+                    $subtotalFactura = round($total / (1 + VentaEntrada::IVA), 2);
+                    $impuestosFactura = round($total - $subtotalFactura, 2);
+                    
+                    // Crear factura con datos del participante
+                    $factura = new Factura();
+                    $factura->numero_factura = Factura::generarNumeroFactura();
+                    $factura->fecha_emision = now()->format('Y-m-d');
+                    $factura->fecha_vencimiento = now()->addDays(30)->format('Y-m-d');
+                    $factura->subtotal = $subtotalFactura;
+                    $factura->impostos = $impuestosFactura;
+                    $factura->descuento = 0;
+                    $factura->montoTotal = $total;
+                    $factura->estado = 'emitida';
+                    
+                    $factura->nombre_fiscal = $nombreComprador;
+                    $factura->nif = $participante->dni ?? 'No especificado';
+                    $factura->direccion_fiscal = $participante->direccion ?? 'No especificada';
+                    $factura->metodo_pago = $validated['metodo_pago'] ?? 'tarjeta';
+                    $factura->notas = "Factura por compra de entradas para el evento: {$evento->nombreEvento}";
+                    $factura->idParticipante = $participante->idParticipante;
+                    $factura->idEntrada = count($entradasCompradas) > 0 ? $entradasCompradas[0]['idEntrada'] : null;
+                    $factura->idPago = $pago->idPago;
+                    $factura->save();
+                    
+                    $facturaId = $factura->idFactura;
+                }
+                
+                // Confirmar transacción
+                DB::commit();
+                
+                // Enviar correos electrónicos
+                $this->enviarCorreosConfirmacion($emailComprador, $entradasCompradas, $evento, $nombreComprador, $facturaId);
+                
+                // Preparar respuesta
+                $respuesta = [
+                    'message' => 'Compra múltiple realizada con éxito',
+                    'total' => $total,
+                    'detalles_compra' => $detallesCompra,
+                    'entradas' => $entradasCompradas,
+                    'evento' => [
+                        'id' => $evento->idEvento,
+                        'nombre' => $evento->nombreEvento,
+                        'fecha' => $evento->fechaEvento,
+                        'hora' => $evento->horaEvento
+                    ],
+                    'comprador' => [
+                        'id' => $participante->idParticipante,
+                        'nombre' => $nombreComprador,
+                        'email' => $emailComprador
+                    ],
+                    'status' => 'success'
+                ];
+                
+                // Si se emitió factura, incluir detalles
+                if ($facturaId) {
+                    $factura = Factura::findOrFail($facturaId);
+                    $respuesta['factura'] = [
+                        'id' => $factura->idFactura,
+                        'numero' => $factura->numero_factura,
+                        'fecha_emision' => $factura->fecha_emision,
+                        'subtotal' => $factura->subtotal,
+                        'impuestos' => $factura->impostos,
+                        'total' => $factura->montoTotal
+                    ];
+                }
+                
+                return response()->json($respuesta, 201);
+                
+            } catch (\Exception $e) {
+                // Revertir transacción en caso de error
+                DB::rollBack();
+                throw $e;
+            }
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error de validación en compra múltiple: ' . json_encode($e->errors()));
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors(),
+                'status' => 'error'
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error en proceso de compra múltiple: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al procesar la compra',
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Método auxiliar para enviar correos de confirmación
+     *
+     * @param string $email
+     * @param array $entradas
+     * @param Evento $evento
+     * @param string $nombreComprador
+     * @param int|null $facturaId
+     * @return void
+     */
+    private function enviarCorreosConfirmacion($email, $entradas, $evento, $nombreComprador, $facturaId = null)
+    {
+        try {
+            // Enviar un solo correo con el resumen de la compra
+            $datosEvento = [
+                'id' => $evento->idEvento,
+                'nombre' => $evento->nombreEvento,
+                'fecha' => $evento->fechaEvento,
+                'hora' => $evento->horaEvento
+            ];
+
+            $datosParticipante = [
+                'nombre' => $nombreComprador,
+                'email' => $email
+            ];
+
+            // Obtener la factura si existe
+            $factura = null;
+            if ($facturaId) {
+                $factura = Factura::findOrFail($facturaId);
+            }
+            
+            // Obtener la primera venta para el correo de confirmación
+            if (count($entradas) > 0) {
+                $ventaEntrada = VentaEntrada::find($entradas[0]['idVentaEntrada']);
+                
+                // Enviar email de confirmación
+                Mail::to($email)->send(new CompraConfirmada($ventaEntrada, $datosEvento, $datosParticipante, $factura));
+                
+                // Enviar cada entrada como PDF adjunto
+                foreach ($entradas as $entrada) {
+                    $ventaEntrada = VentaEntrada::with(['entrada.evento', 'entrada.tipoEntrada'])
+                        ->findOrFail($entrada['idVentaEntrada']);
+                    
+                    $pdf = PDF::loadView('pdfs.entrada', ['venta' => $ventaEntrada])
+                        ->setPaper('a4')
+                        ->setOption('isHtml5ParserEnabled', true)
+                        ->setOption('isPhpEnabled', true);
+                    
+                    $nombreArchivo = 'entrada-' . $ventaEntrada->entrada->codigo . '.pdf';
+                    
+                    Mail::to($email)->send(new \App\Mail\EntradaEnviada($ventaEntrada, $pdf->output(), $nombreArchivo));
+                }
+            }
+        } catch (\Exception $e) {
+            // Loguear el error pero no interrumpir la operación
+            Log::error('Error al enviar correos de confirmación: ' . $e->getMessage());
+        }
+    }
 } 
